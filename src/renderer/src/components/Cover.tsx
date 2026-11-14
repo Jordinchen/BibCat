@@ -23,7 +23,7 @@ export function Cover({
       className={`cover cover-placeholder ${className}`}
       style={{ background: `linear-gradient(160deg, hsl(${h} 32% 42%), hsl(${(h + 30) % 360} 38% 28%))` }}
     >
-      <span className="ph-title">{book.title || 'Ohne Titel'}</span>
+      <span className="ph-title">{book.title || '…'}</span>
       <span className="ph-author">{book.authors.split(';')[0]}</span>
     </div>
   )

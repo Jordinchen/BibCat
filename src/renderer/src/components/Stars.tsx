@@ -15,7 +15,7 @@ export function Stars({ value, onChange, size = 'md' }: Props) {
       className={`stars stars-${size} ${onChange ? 'stars-edit' : ''}`}
       onMouseLeave={() => setHover(0)}
       role={onChange ? 'radiogroup' : 'img'}
-      aria-label={`Bewertung: ${value} von 5`}
+      aria-label={`${value}/5`}
     >
       {[1, 2, 3, 4, 5].map((n) =>
         onChange ? (
@@ -25,7 +25,7 @@ export function Stars({ value, onChange, size = 'md' }: Props) {
             className={n <= shown ? 'on' : ''}
             onMouseEnter={() => setHover(n)}
             onClick={() => onChange(n === value ? 0 : n)}
-            aria-label={`${n} Stern${n > 1 ? 'e' : ''}`}
+            aria-label={`${n}/5`}
           >
             ★
           </button>

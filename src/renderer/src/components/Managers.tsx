@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react'
 import type { Location, Subject } from '@shared/types'
 import { Modal } from './Modal'
-import { flattenLocations } from '../util'
+import { errMsg, flattenLocations } from '../util'
+import { useI18n } from '../i18n'
 
-const COLORS = ['#b45309', '#15803d', '#0369a1', '#7c3aed', '#be123c', '#0f766e', '#a16207', '#4b5563']
+const COLORS = ['#e05a7a', '#b45309', '#15803d', '#0369a1', '#7c3aed', '#0f766e', '#a16207', '#4b5563']
 
 export function SubjectManager({
   subjects,
@@ -14,6 +15,7 @@ export function SubjectManager({
   onClose: () => void
   onChanged: () => void
 }) {
+  const { t } = useI18n()
   const [edit, setEdit] = useState<{ id?: number; name: string; notation: string; color: string } | null>(
     null
   )
@@ -22,44 +24,41 @@ export function SubjectManager({
   async function save() {
     if (!edit) return
     try {
-      await window.bibcat.subjects.save(edit)
+      await window.bibcraft.subjects.save(edit)
       setEdit(null)
       setError('')
       onChanged()
     } catch (e) {
-      setError((e as Error).message)
+      setError(errMsg(e))
     }
   }
 
   return (
-    <Modal title="Fachgebiete" onClose={onClose}>
-      <p className="muted">
-        Fachgebiete gliedern deinen Bestand thematisch. Optional kannst du eine Notation aus einer Systematik
-        vergeben (z. B. DDC <span className="mono">830</span> für deutsche Literatur).
-      </p>
+    <Modal title={t('subjects.title')} onClose={onClose}>
+      <p className="muted">{t('subjects.intro')}</p>
       <ul className="manage-list">
         {subjects.map((s) => (
           <li key={s.id}>
             <span className="dot" style={{ background: s.color }} />
             {s.notation && <span className="mono muted">{s.notation}</span>}
             <span className="grow">{s.name}</span>
-            <span className="muted">{s.bookCount} Bücher</span>
+            <span className="muted">{t('common.books', { n: s.bookCount })}</span>
             <button className="btn btn-sm" onClick={() => setEdit({ ...s })}>
-              Ändern
+              {t('common.change')}
             </button>
             <button
               className="btn btn-sm btn-ghost btn-danger"
               onClick={async () => {
                 const msg = s.bookCount
-                  ? `„${s.name}" löschen? ${s.bookCount} Bücher verlieren dabei ihr Fachgebiet.`
-                  : `„${s.name}" löschen?`
+                  ? t('subjects.confirmDeleteBooks', { name: s.name, n: s.bookCount })
+                  : t('subjects.confirmDelete', { name: s.name })
                 if (confirm(msg)) {
-                  await window.bibcat.subjects.remove(s.id)
+                  await window.bibcraft.subjects.remove(s.id)
                   onChanged()
                 }
               }}
             >
-              Löschen
+              {t('common.delete')}
             </button>
           </li>
         ))}
@@ -67,13 +66,13 @@ export function SubjectManager({
       {edit ? (
         <div className="manage-form">
           <input
-            placeholder="Notation"
+            placeholder={t('subjects.notation')}
             className="w-notation"
             value={edit.notation}
             onChange={(e) => setEdit({ ...edit, notation: e.target.value })}
           />
           <input
-            placeholder="Name, z. B. Philosophie"
+            placeholder={t('subjects.namePlaceholder')}
             className="grow"
             autoFocus
             value={edit.name}
@@ -87,15 +86,15 @@ export function SubjectManager({
                 className={`swatch ${edit.color === c ? 'on' : ''}`}
                 style={{ background: c }}
                 onClick={() => setEdit({ ...edit, color: c })}
-                aria-label={`Farbe ${c}`}
+                aria-label={c}
               />
             ))}
           </div>
           <button className="btn btn-primary" onClick={save}>
-            Speichern
+            {t('common.save')}
           </button>
           <button className="btn btn-ghost" onClick={() => setEdit(null)}>
-            Abbrechen
+            {t('common.cancel')}
           </button>
         </div>
       ) : (
@@ -103,7 +102,7 @@ export function SubjectManager({
           className="btn"
           onClick={() => setEdit({ name: '', notation: '', color: COLORS[subjects.length % COLORS.length] })}
         >
-          + Fachgebiet hinzufügen
+          {t('subjects.add')}
         </button>
       )}
       {error && <div className="notice notice-error">{error}</div>}
@@ -120,6 +119,7 @@ export function LocationManager({
   onClose: () => void
   onChanged: () => void
 }) {
+  const { t } = useI18n()
   const nodes = useMemo(() => flattenLocations(locations), [locations])
   const [edit, setEdit] = useState<{ id?: number; name: string; parentId: number | null } | null>(null)
   const [error, setError] = useState('')
@@ -127,21 +127,18 @@ export function LocationManager({
   async function save() {
     if (!edit) return
     try {
-      await window.bibcat.locations.save(edit)
+      await window.bibcraft.locations.save(edit)
       setEdit(null)
       setError('')
       onChanged()
     } catch (e) {
-      setError((e as Error).message)
+      setError(errMsg(e))
     }
   }
 
   return (
-    <Modal title="Standorte" onClose={onClose}>
-      <p className="muted">
-        Standorte lassen sich verschachteln, z. B. <em>Arbeitszimmer › Regal 2 › Fach 3</em>. Ein Klick auf
-        einen Raum zeigt später alle Bücher darin – auch die in den Regalen.
-      </p>
+    <Modal title={t('locations.title')} onClose={onClose}>
+      <p className="muted">{t('locations.intro')}</p>
       <ul className="manage-list">
         {nodes.map((l) => (
           <li key={l.id} style={{ paddingLeft: 8 + l.depth * 20 }}>
@@ -149,30 +146,26 @@ export function LocationManager({
               {l.depth > 0 && <span className="muted">└ </span>}
               {l.name}
             </span>
-            <span className="muted">{l.bookCount} Bücher</span>
+            <span className="muted">{t('common.books', { n: l.bookCount })}</span>
             <button className="btn btn-sm" onClick={() => setEdit({ name: '', parentId: l.id })}>
-              + Unterort
+              {t('locations.addChild')}
             </button>
             <button
               className="btn btn-sm"
               onClick={() => setEdit({ id: l.id, name: l.name, parentId: l.parentId })}
             >
-              Ändern
+              {t('common.change')}
             </button>
             <button
               className="btn btn-sm btn-ghost btn-danger"
               onClick={async () => {
-                if (
-                  confirm(
-                    `„${l.name}" und alle Unterorte löschen? Die Bücher bleiben erhalten, verlieren aber ihren Standort.`
-                  )
-                ) {
-                  await window.bibcat.locations.remove(l.id)
+                if (confirm(t('locations.confirmDelete', { name: l.name }))) {
+                  await window.bibcraft.locations.remove(l.id)
                   onChanged()
                 }
               }}
             >
-              Löschen
+              {t('common.delete')}
             </button>
           </li>
         ))}
@@ -180,7 +173,7 @@ export function LocationManager({
       {edit ? (
         <div className="manage-form">
           <input
-            placeholder="Name, z. B. Wohnzimmer oder Regal 1"
+            placeholder={t('locations.namePlaceholder')}
             className="grow"
             autoFocus
             value={edit.name}
@@ -191,25 +184,25 @@ export function LocationManager({
             value={edit.parentId ?? ''}
             onChange={(e) => setEdit({ ...edit, parentId: e.target.value ? Number(e.target.value) : null })}
           >
-            <option value="">(oberste Ebene)</option>
+            <option value="">{t('locations.topLevel')}</option>
             {nodes
               .filter((n) => n.id !== edit.id)
               .map((n) => (
                 <option key={n.id} value={n.id}>
-                  in: {n.path}
+                  {t('locations.inside', { path: n.path })}
                 </option>
               ))}
           </select>
           <button className="btn btn-primary" onClick={save}>
-            Speichern
+            {t('common.save')}
           </button>
           <button className="btn btn-ghost" onClick={() => setEdit(null)}>
-            Abbrechen
+            {t('common.cancel')}
           </button>
         </div>
       ) : (
         <button className="btn" onClick={() => setEdit({ name: '', parentId: null })}>
-          + Raum / Standort hinzufügen
+          {t('locations.add')}
         </button>
       )}
       {error && <div className="notice notice-error">{error}</div>}

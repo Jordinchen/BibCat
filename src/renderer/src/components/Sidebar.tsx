@@ -1,6 +1,8 @@
-import { useMemo } from 'react'
-import { READ_STATUS_LABELS, type Location, type ReadStatus, type Stats, type Subject } from '@shared/types'
+import { useMemo, type ReactNode } from 'react'
+import { BookCheck, BookMarked, BookOpen, BookX, Folder, Heart, Library, MapPin } from 'lucide-react'
+import { READ_STATUSES, type Location, type ReadStatus, type Stats, type Subject } from '@shared/types'
 import { flattenLocations } from '../util'
+import { useI18n } from '../i18n'
 
 export type Filter =
   | { kind: 'all' }
@@ -9,22 +11,26 @@ export type Filter =
   | { kind: 'location'; id: number }
   | { kind: 'favorites' }
 
+export const STATUS_ICONS: Record<ReadStatus, typeof BookOpen> = {
+  unread: BookMarked,
+  reading: BookOpen,
+  read: BookCheck,
+  abandoned: BookX
+}
+
 interface Props {
   filter: Filter
   onFilter: (f: Filter) => void
   stats: Stats | null
   subjects: Subject[]
   locations: Location[]
-  onNew: () => void
-  onQuick: () => void
   onManageSubjects: () => void
   onManageLocations: () => void
-  onExport: () => void
-  onBackup: () => void
 }
 
-
+/** Navigationsbereich links: Filter nach Lesestatus, Fachgebiet und Standort */
 export function Sidebar(p: Props) {
+  const { t } = useI18n()
   const locs = useMemo(() => flattenLocations(p.locations), [p.locations])
   const is = (f: Filter) => JSON.stringify(f) === JSON.stringify(p.filter)
 
@@ -36,14 +42,14 @@ export function Sidebar(p: Props) {
     depth = 0
   }: {
     f: Filter
-    icon: React.ReactNode
+    icon: ReactNode
     label: string
     count?: number
     depth?: number
   }) => (
     <button
       className={`nav-item ${is(f) ? 'active' : ''}`}
-      style={{ paddingLeft: 12 + depth * 14 }}
+      style={{ paddingLeft: 10 + depth * 16 }}
       onClick={() => p.onFilter(f)}
       title={label}
     >
@@ -55,49 +61,43 @@ export function Sidebar(p: Props) {
 
   return (
     <nav className="sidebar">
-      <div className="brand">
-        <span className="brand-mark">B</span>
-        <span>BibCat</span>
-      </div>
-
-      <div className="sidebar-actions">
-        <button className="btn btn-primary btn-block" onClick={p.onQuick}>
-          Schnellerfassung
-        </button>
-        <button className="btn btn-block" onClick={p.onNew}>
-          + Einzelnes Buch
-        </button>
-      </div>
-
       <div className="nav-scroll">
         <div className="nav-group">
-          <Item f={{ kind: 'all' }} icon="▤" label="Alle Bücher" count={p.stats?.total} />
-          <Item f={{ kind: 'favorites' }} icon="★" label="Lieblingsbücher" />
+          <Item
+            f={{ kind: 'all' }}
+            icon={<Library size={16} />}
+            label={t('nav.all')}
+            count={p.stats?.total}
+          />
+          <Item f={{ kind: 'favorites' }} icon={<Heart size={16} />} label={t('nav.favorites')} />
         </div>
 
         <div className="nav-group">
-          <div className="nav-heading">Lesestatus</div>
-          {(Object.keys(READ_STATUS_LABELS) as ReadStatus[]).map((s) => (
-            <Item
-              key={s}
-              f={{ kind: 'status', status: s }}
-              icon={<span className={`si si-${s}`} />}
-              label={READ_STATUS_LABELS[s]}
-              count={p.stats?.byStatus[s]}
-            />
-          ))}
+          <div className="nav-heading">{t('nav.readStatus')}</div>
+          {READ_STATUSES.map((s) => {
+            const Icon = STATUS_ICONS[s]
+            return (
+              <Item
+                key={s}
+                f={{ kind: 'status', status: s }}
+                icon={<Icon size={16} />}
+                label={t(`status.${s}`)}
+                count={p.stats?.byStatus[s]}
+              />
+            )
+          })}
         </div>
 
         <div className="nav-group">
           <div className="nav-heading">
-            Fachgebiete
+            {t('nav.subjects')}
             <button className="link-btn" onClick={p.onManageSubjects}>
-              Verwalten
+              {t('nav.manage')}
             </button>
           </div>
           {p.subjects.length === 0 && (
             <button className="nav-empty" onClick={p.onManageSubjects}>
-              Fachgebiet anlegen …
+              {t('nav.addSubject')}
             </button>
           )}
           {p.subjects.map((s) => (
@@ -113,36 +113,27 @@ export function Sidebar(p: Props) {
 
         <div className="nav-group">
           <div className="nav-heading">
-            Standorte
+            {t('nav.locations')}
             <button className="link-btn" onClick={p.onManageLocations}>
-              Verwalten
+              {t('nav.manage')}
             </button>
           </div>
           {locs.length === 0 && (
             <button className="nav-empty" onClick={p.onManageLocations}>
-              Standort anlegen …
+              {t('nav.addLocation')}
             </button>
           )}
           {locs.map((l) => (
             <Item
               key={l.id}
               f={{ kind: 'location', id: l.id }}
-              icon={l.depth === 0 ? '⌂' : '▭'}
+              icon={l.depth === 0 ? <MapPin size={16} /> : <Folder size={15} />}
               label={l.name}
               count={l.bookCount}
               depth={l.depth}
             />
           ))}
         </div>
-      </div>
-
-      <div className="sidebar-foot">
-        <button className="link-btn" onClick={p.onExport}>
-          CSV-Export
-        </button>
-        <button className="link-btn" onClick={p.onBackup}>
-          Sicherung
-        </button>
       </div>
     </nav>
   )

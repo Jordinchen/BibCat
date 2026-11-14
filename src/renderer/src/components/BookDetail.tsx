@@ -1,7 +1,9 @@
-import { READ_STATUS_LABELS, type Book, type ReadStatus, type Subject } from '@shared/types'
+import { X } from 'lucide-react'
+import { READ_STATUSES, type Book, type ReadStatus, type Subject } from '@shared/types'
 import { Cover } from './Cover'
 import { Stars } from './Stars'
 import type { LocationNode } from '../util'
+import { useI18n } from '../i18n'
 
 interface Props {
   book: Book
@@ -24,12 +26,13 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 }
 
 export function BookDetail({ book: b, subject, location, onEdit, onDelete, onPatch, onClose }: Props) {
+  const { t, date } = useI18n()
   // Bibliografische Form "Ort: Verlag, Jahr"
   const published = [[b.place, b.publisher].filter(Boolean).join(': '), b.year].filter(Boolean).join(', ')
   return (
     <aside className="detail">
-      <button className="icon-btn detail-close" onClick={onClose} aria-label="Schließen">
-        ✕
+      <button className="icon-btn detail-close" onClick={onClose} aria-label={t('common.close')}>
+        <X size={16} />
       </button>
       <Cover book={b} className="cover-detail" />
       <h2 className="detail-title">{b.title}</h2>
@@ -53,19 +56,22 @@ export function BookDetail({ book: b, subject, location, onEdit, onDelete, onPat
             onPatch({ readStatus, readDate })
           }}
         >
-          {(Object.keys(READ_STATUS_LABELS) as ReadStatus[]).map((s) => (
+          {READ_STATUSES.map((s) => (
             <option key={s} value={s}>
-              {READ_STATUS_LABELS[s]}
+              {t(`status.${s}`)}
             </option>
           ))}
         </select>
       </div>
 
       <dl className="detail-list">
-        <Row label="Standort" value={location?.path} />
-        <Row label="Signatur" value={b.callNumber && <span className="mono">{b.callNumber}</span>} />
+        <Row label={t('detail.location')} value={location?.path} />
         <Row
-          label="Fachgebiet"
+          label={t('detail.callNumber')}
+          value={b.callNumber && <span className="mono">{b.callNumber}</span>}
+        />
+        <Row
+          label={t('detail.subject')}
           value={
             subject && (
               <span className="chip">
@@ -75,19 +81,19 @@ export function BookDetail({ book: b, subject, location, onEdit, onDelete, onPat
             )
           }
         />
-        <Row label="Erschienen" value={published} />
-        <Row label="Auflage" value={b.edition} />
-        <Row label="Reihe" value={[b.series, b.seriesNumber].filter(Boolean).join(' · ')} />
-        <Row label="Beteiligte" value={b.contributors} />
-        <Row label="ISBN" value={b.isbn && <span className="mono">{b.isbn}</span>} />
-        <Row label="Umfang" value={[b.pages ? `${b.pages} S.` : '', b.binding].filter(Boolean).join(', ')} />
-        <Row label="Sprache" value={b.language} />
-        <Row label="Exemplare" value={b.copies !== 1 ? b.copies : ''} />
-        <Row label="Gelesen am" value={b.readDate && new Date(b.readDate).toLocaleDateString('de-DE')} />
+        <Row label={t('detail.published')} value={published} />
+        <Row label={t('detail.edition')} value={b.edition} />
+        <Row label={t('detail.series')} value={[b.series, b.seriesNumber].filter(Boolean).join(' · ')} />
+        <Row label={t('detail.contributors')} value={b.contributors} />
+        <Row label={t('detail.isbn')} value={b.isbn && <span className="mono">{b.isbn}</span>} />
         <Row
-          label="Erworben"
-          value={b.acquiredDate && new Date(b.acquiredDate).toLocaleDateString('de-DE')}
+          label={t('detail.extent')}
+          value={[b.pages ? t('detail.pages', { n: b.pages }) : '', b.binding].filter(Boolean).join(', ')}
         />
+        <Row label={t('detail.language')} value={b.language} />
+        <Row label={t('detail.copies')} value={b.copies !== 1 ? b.copies : ''} />
+        <Row label={t('detail.readDate')} value={date(b.readDate)} />
+        <Row label={t('detail.acquired')} value={date(b.acquiredDate)} />
       </dl>
 
       {b.keywords && (
@@ -106,17 +112,17 @@ export function BookDetail({ book: b, subject, location, onEdit, onDelete, onPat
       {b.description && <p className="detail-text">{b.description}</p>}
       {b.notes && (
         <div className="detail-notes">
-          <span className="field-label">Notizen</span>
+          <span className="field-label">{t('detail.notes')}</span>
           <p>{b.notes}</p>
         </div>
       )}
 
       <div className="detail-actions">
         <button className="btn btn-primary" onClick={onEdit}>
-          Bearbeiten
+          {t('common.edit')}
         </button>
         <button className="btn btn-ghost btn-danger" onClick={onDelete}>
-          Löschen
+          {t('common.delete')}
         </button>
       </div>
     </aside>

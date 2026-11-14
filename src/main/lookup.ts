@@ -1,5 +1,6 @@
 import type { BookInput, IsbnResult } from '@shared/types'
 import { isbn13to10, toIsbn13 } from '@shared/isbn'
+import { AppError } from '@shared/i18n'
 
 const TIMEOUT_MS = 12000
 
@@ -7,7 +8,7 @@ async function fetchText(url: string): Promise<string | null> {
   try {
     const res = await fetch(url, {
       signal: AbortSignal.timeout(TIMEOUT_MS),
-      headers: { 'User-Agent': 'BibCat/0.1 (Desktop-Katalog)' }
+      headers: { 'User-Agent': 'BibCraft/0.2 (Desktop-Katalog)' }
     })
     if (!res.ok) return null
     return await res.text()
@@ -245,7 +246,7 @@ async function fromGoogle(isbn: string): Promise<IsbnResult | null> {
 /** Fragt alle Quellen parallel ab; DNB zuerst, da für deutschsprachige Titel am genauesten. */
 export async function lookupIsbn(raw: string): Promise<IsbnResult[]> {
   const isbn = toIsbn13(raw)
-  if (!isbn) throw new Error('Ungültige ISBN')
+  if (!isbn) throw new AppError('err.invalidIsbn')
   const results = await Promise.all([fromDnb(isbn), fromOpenLibrary(isbn), fromGoogle(isbn)])
   const found = results.filter((r): r is IsbnResult => !!r)
   // Open Library kennt manche Bücher nur unter der ISBN-10

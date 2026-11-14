@@ -1,6 +1,7 @@
 import { DatabaseSync } from 'node:sqlite'
 import type { Book, BookInput, BookQuery, Location, ReadStatus, Stats, Subject } from '@shared/types'
 import { cleanIsbn, toIsbn13 } from '@shared/isbn'
+import { AppError } from '@shared/i18n'
 
 type Row = Record<string, unknown>
 
@@ -119,6 +120,12 @@ const MIGRATIONS: string[] = [
     VALUES (new.id, new.title, new.subtitle, new.authors, new.contributors, new.publisher,
       new.series, new.keywords, new.call_number, new.isbn, new.description, new.notes);
   END;
+  `,
+  `
+  CREATE TABLE settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+  );
   `
 ]
 
@@ -288,7 +295,7 @@ export class Catalog {
       )
       .run({ ...p, id })
     const b = this.getBook(id)
-    if (!b) throw new Error(`Buch ${id} nicht gefunden`)
+    if (!b) throw new AppError('err.bookNotFound')
     return b
   }
 
@@ -324,7 +331,7 @@ export class Catalog {
 
   saveSubject(s: { id?: number; name: string; notation: string; color: string }): Subject {
     const name = s.name.trim()
-    if (!name) throw new Error('Name des Fachgebiets fehlt')
+    if (!name) throw new AppError('err.subjectName')
     let id = s.id
     if (id) {
       this.db
@@ -358,11 +365,11 @@ export class Catalog {
 
   saveLocation(l: { id?: number; name: string; parentId: number | null }): Location {
     const name = l.name.trim()
-    if (!name) throw new Error('Name des Standorts fehlt')
+    if (!name) throw new AppError('err.locationName')
     let id = l.id
     if (id) {
       if (l.parentId && this.isDescendant(l.parentId, id)) {
-        throw new Error('Ein Standort kann nicht in sich selbst liegen')
+        throw new AppError('err.locationCycle')
       }
       this.db.prepare('UPDATE locations SET name = ?, parent_id = ? WHERE id = ?').run(name, l.parentId, id)
     } else {
@@ -388,6 +395,23 @@ export class Catalog {
 
   deleteLocation(id: number): void {
     this.db.prepare('DELETE FROM locations WHERE id = ?').run(id)
+  }
+
+  // ---------- Einstellungen ----------
+
+  getSetting(key: string): string | null {
+    const r = this.db.prepare('SELECT value FROM settings WHERE key = ?').get(key) as
+      | { value: string }
+      | undefined
+    return r?.value ?? null
+  }
+
+  setSetting(key: string, value: string): void {
+    this.db
+      .prepare(
+        'INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value'
+      )
+      .run(key, value)
   }
 
   /** Erzeugt eine konsistente Kopie der Datenbank (für Backups). */

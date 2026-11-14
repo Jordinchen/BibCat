@@ -1,8 +1,8 @@
-import type { BibCatApi } from '@shared/types'
+import type { BibCraftApi } from '@shared/types'
 
 declare global {
   interface Window {
-    bibcat: BibCatApi
+    bibcraft: BibCraftApi
   }
 }
 

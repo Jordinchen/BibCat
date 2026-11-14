@@ -1,5 +1,7 @@
+# appId bleibt bewusst unverändert (aus BibCat-Zeiten), damit neue Installer
+# die bestehende Installation aktualisieren statt eine zweite anzulegen.
 appId: de.bibcat.app
-productName: BibCat
+productName: BibCraft
 directories:
   buildResources: build
   output: dist
@@ -15,13 +17,14 @@ nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
+  shortcutName: BibCraft
 mac:
   category: public.app-category.reference
   target:
     - target: dmg
       arch: [universal]
   extendInfo:
-    NSCameraUsageDescription: BibCat nutzt die Kamera, um ISBN-Barcodes von Büchern zu scannen.
+    NSCameraUsageDescription: BibCraft uses the camera to scan ISBN barcodes. / BibCraft nutzt die Kamera, um ISBN-Barcodes zu scannen.
 linux:
   target: [AppImage]
   category: Office

@@ -30,3 +30,9 @@ export function primaryAuthor(authors: string): string {
   const extra = authors.split(';').length > 1 ? ' u. a.' : ''
   return first + extra
 }
+
+/** Fehlermeldung ohne Electrons technisches Präfix "Error invoking remote method …" */
+export function errMsg(e: unknown): string {
+  const m = e instanceof Error ? e.message : String(e)
+  return m.replace(/^Error invoking remote method '[^']+': (?:\w*Error: )?/, '')
+}

@@ -1,5 +1,6 @@
 import type { Book, Subject } from '@shared/types'
-import { READ_STATUS_LABELS } from '@shared/types'
+import { BookCheck, BookOpen } from 'lucide-react'
+import { useI18n } from '../i18n'
 import { Cover } from './Cover'
 import { Stars } from './Stars'
 import { primaryAuthor } from '../util'
@@ -13,6 +14,7 @@ interface Props {
 }
 
 export function BookGrid({ books, selectedId, onSelect, onOpen }: Props) {
+  const { t } = useI18n()
   return (
     <div className="book-grid">
       {books.map((b) => (
@@ -25,13 +27,13 @@ export function BookGrid({ books, selectedId, onSelect, onOpen }: Props) {
           <div className="grid-cover">
             <Cover book={b} />
             {b.readStatus === 'read' && (
-              <span className="badge-read" title="Gelesen">
-                ✓
+              <span className="badge-read" title={t('status.read')}>
+                <BookCheck size={13} />
               </span>
             )}
             {b.readStatus === 'reading' && (
-              <span className="badge-reading" title="Lese ich gerade">
-                ◐
+              <span className="badge-reading" title={t('status.reading')}>
+                <BookOpen size={13} />
               </span>
             )}
           </div>
@@ -45,19 +47,20 @@ export function BookGrid({ books, selectedId, onSelect, onOpen }: Props) {
 }
 
 export function BookTable({ books, selectedId, onSelect, onOpen, subjects }: Props) {
+  const { t } = useI18n()
   return (
     <div className="table-wrap">
       <table className="book-table">
         <thead>
           <tr>
             <th style={{ width: 40 }} />
-            <th>Titel</th>
-            <th>Autor</th>
-            <th>Jahr</th>
-            <th>Fachgebiet</th>
-            <th>Signatur</th>
-            <th>Status</th>
-            <th>Bewertung</th>
+            <th>{t('sort.title')}</th>
+            <th>{t('sort.authors')}</th>
+            <th>{t('field.year')}</th>
+            <th>{t('field.subject')}</th>
+            <th>{t('field.callNumber')}</th>
+            <th>{t('field.readStatus')}</th>
+            <th>{t('field.rating')}</th>
           </tr>
         </thead>
         <tbody>
@@ -89,7 +92,7 @@ export function BookTable({ books, selectedId, onSelect, onOpen, subjects }: Pro
                 </td>
                 <td className="mono">{b.callNumber}</td>
                 <td>
-                  <span className={`status status-${b.readStatus}`}>{READ_STATUS_LABELS[b.readStatus]}</span>
+                  <span className={`status status-${b.readStatus}`}>{t(`status.${b.readStatus}`)}</span>
                 </td>
                 <td>{b.rating > 0 && <Stars value={b.rating} size="sm" />}</td>
               </tr>

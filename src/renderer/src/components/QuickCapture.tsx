@@ -1,7 +1,8 @@
 import { lazy, Suspense, useMemo, useRef, useState } from 'react'
+import { Camera } from 'lucide-react'
 import {
   EMPTY_BOOK,
-  READ_STATUS_LABELS,
+  READ_STATUSES,
   type Book,
   type BookInput,
   type Location,
@@ -11,8 +12,9 @@ import {
 import { cleanIsbn, isValidIsbn, toIsbn13 } from '@shared/isbn'
 import { Modal } from './Modal'
 import { Cover } from './Cover'
-import { flattenLocations, primaryAuthor } from '../util'
+import { errMsg, flattenLocations, primaryAuthor } from '../util'
 import { fetchBookData } from '../lookup'
+import { useI18n } from '../i18n'
 
 // Der Barcode-Leser ist groß und wird erst bei Bedarf geladen
 const Scanner = lazy(() => import('./Scanner').then((m) => ({ default: m.Scanner })))
@@ -34,6 +36,7 @@ type Entry =
   | { key: number; isbn: string; state: 'error'; message: string }
 
 export function QuickCapture({ subjects, locations, onClose, onChanged, onEdit }: Props) {
+  const { t } = useI18n()
   const [input, setInput] = useState('')
   const [camera, setCamera] = useState(false)
   const [locationId, setLocationId] = useState<number | null>(null)
@@ -47,13 +50,15 @@ export function QuickCapture({ subjects, locations, onClose, onChanged, onEdit }
 
   const defaults = useRef({ locationId, subjectId, readStatus })
   defaults.current = { locationId, subjectId, readStatus }
+  const tr = useRef(t)
+  tr.current = t
 
   const update = (key: number, e: Entry) => setEntries((list) => list.map((x) => (x.key === key ? e : x)))
 
   async function process(key: number, raw: string) {
     const isbn = toIsbn13(raw)!
     try {
-      const dup = await window.bibcat.books.findByIsbn(isbn)
+      const dup = await window.bibcraft.books.findByIsbn(isbn)
       if (dup) {
         update(key, { key, isbn, state: 'duplicate', book: dup })
         return
@@ -69,15 +74,18 @@ export function QuickCapture({ subjects, locations, onClose, onChanged, onEdit }
       }
       if (!sources.length) {
         // Platzhalter anlegen, damit nichts verloren geht – Titel später nachtragen
-        const book = await window.bibcat.books.create({ ...base, title: `Unbekannt (ISBN ${isbn})` })
+        const book = await window.bibcraft.books.create({
+          ...base,
+          title: tr.current('quick.unknownTitle', { isbn })
+        })
         update(key, { key, isbn, state: 'notfound', book })
       } else {
-        const book = await window.bibcat.books.create(base)
+        const book = await window.bibcraft.books.create(base)
         update(key, { key, isbn, state: 'saved', book, sources })
       }
       onChanged()
     } catch (e) {
-      update(key, { key, isbn, state: 'error', message: (e as Error).message })
+      update(key, { key, isbn, state: 'error', message: errMsg(e) })
     }
   }
 
@@ -96,14 +104,14 @@ export function QuickCapture({ subjects, locations, onClose, onChanged, onEdit }
 
   async function addCopy(entry: Extract<Entry, { state: 'duplicate' }>) {
     const { id, createdAt: _c, updatedAt: _u, ...rest } = entry.book
-    const book = await window.bibcat.books.update(id, { ...rest, copies: rest.copies + 1 })
+    const book = await window.bibcraft.books.update(id, { ...rest, copies: rest.copies + 1 })
     update(entry.key, { ...entry, book })
     onChanged()
     inputRef.current?.focus()
   }
 
   async function undo(entry: Entry & { book: Book }) {
-    await window.bibcat.books.remove(entry.book.id)
+    await window.bibcraft.books.remove(entry.book.id)
     setEntries((l) => l.filter((x) => x.key !== entry.key))
     onChanged()
     inputRef.current?.focus()
@@ -112,13 +120,10 @@ export function QuickCapture({ subjects, locations, onClose, onChanged, onEdit }
   const savedCount = entries.filter((e) => e.state === 'saved' || e.state === 'notfound').length
 
   return (
-    <Modal wide title="Schnellerfassung" onClose={onClose}>
+    <Modal wide title={t('quick.title')} onClose={onClose}>
       <div className="quick">
         <div className="quick-left">
-          <p className="muted">
-            ISBN eintippen oder mit einem USB-Barcodescanner einlesen – jedes Buch wird sofort gespeichert.
-            Die Voreinstellungen unten gelten für alle neuen Bücher.
-          </p>
+          <p className="muted">{t('quick.intro')}</p>
           <div className="isbn-bar">
             <input
               ref={inputRef}
@@ -135,7 +140,7 @@ export function QuickCapture({ subjects, locations, onClose, onChanged, onEdit }
               }}
             />
             <button className={`btn ${camera ? 'btn-active' : ''}`} onClick={() => setCamera((c) => !c)}>
-              📷 Kamera
+              <Camera size={16} /> {t('quick.camera')}
             </button>
           </div>
           {camera && (
@@ -146,12 +151,12 @@ export function QuickCapture({ subjects, locations, onClose, onChanged, onEdit }
 
           <div className="quick-defaults">
             <label className="field">
-              <span className="field-label">Standort</span>
+              <span className="field-label">{t('field.location')}</span>
               <select
                 value={locationId ?? ''}
                 onChange={(e) => setLocationId(e.target.value ? Number(e.target.value) : null)}
               >
-                <option value="">— nicht zugeordnet —</option>
+                <option value="">{t('common.unassigned')}</option>
                 {locs.map((l) => (
                   <option key={l.id} value={l.id}>
                     {l.path}
@@ -160,12 +165,12 @@ export function QuickCapture({ subjects, locations, onClose, onChanged, onEdit }
               </select>
             </label>
             <label className="field">
-              <span className="field-label">Fachgebiet</span>
+              <span className="field-label">{t('field.subject')}</span>
               <select
                 value={subjectId ?? ''}
                 onChange={(e) => setSubjectId(e.target.value ? Number(e.target.value) : null)}
               >
-                <option value="">— keines —</option>
+                <option value="">{t('common.none')}</option>
                 {subjects.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name}
@@ -174,11 +179,11 @@ export function QuickCapture({ subjects, locations, onClose, onChanged, onEdit }
               </select>
             </label>
             <label className="field">
-              <span className="field-label">Lesestatus</span>
+              <span className="field-label">{t('field.readStatus')}</span>
               <select value={readStatus} onChange={(e) => setReadStatus(e.target.value as ReadStatus)}>
-                {(Object.keys(READ_STATUS_LABELS) as ReadStatus[]).map((s) => (
+                {READ_STATUSES.map((s) => (
                   <option key={s} value={s}>
-                    {READ_STATUS_LABELS[s]}
+                    {t(`status.${s}`)}
                   </option>
                 ))}
               </select>
@@ -188,9 +193,9 @@ export function QuickCapture({ subjects, locations, onClose, onChanged, onEdit }
 
         <div className="quick-log">
           <div className="quick-log-head">
-            <strong>In dieser Sitzung erfasst: {savedCount}</strong>
+            <strong>{t('quick.count', { n: savedCount })}</strong>
           </div>
-          {entries.length === 0 && <div className="empty-small">Noch nichts gescannt.</div>}
+          {entries.length === 0 && <div className="empty-small">{t('quick.empty')}</div>}
           <ul>
             {entries.map((e) => (
               <li key={e.key} className={`log-item log-${e.state}`}>
@@ -203,7 +208,7 @@ export function QuickCapture({ subjects, locations, onClose, onChanged, onEdit }
                   {e.state === 'pending' && (
                     <>
                       <strong>{e.isbn}</strong>
-                      <span className="muted">wird abgefragt …</span>
+                      <span className="muted">{t('quick.pending')}</span>
                     </>
                   )}
                   {e.state === 'saved' && (
@@ -217,19 +222,19 @@ export function QuickCapture({ subjects, locations, onClose, onChanged, onEdit }
                   {e.state === 'notfound' && (
                     <>
                       <strong>{e.isbn}</strong>
-                      <span className="warn-text">Keine Daten gefunden – Platzhalter angelegt</span>
+                      <span className="warn-text">{t('quick.notFound')}</span>
                     </>
                   )}
                   {e.state === 'duplicate' && (
                     <>
                       <strong>{e.book.title}</strong>
-                      <span className="warn-text">Bereits im Katalog ({e.book.copies} Expl.)</span>
+                      <span className="warn-text">{t('quick.duplicate', { n: e.book.copies })}</span>
                     </>
                   )}
                   {e.state === 'invalid' && (
                     <>
                       <strong>{e.isbn}</strong>
-                      <span className="error-text">Ungültige ISBN</span>
+                      <span className="error-text">{t('quick.invalid')}</span>
                     </>
                   )}
                   {e.state === 'error' && (
@@ -243,16 +248,16 @@ export function QuickCapture({ subjects, locations, onClose, onChanged, onEdit }
                   {(e.state === 'saved' || e.state === 'notfound') && (
                     <>
                       <button className="btn btn-sm" onClick={() => onEdit(e.book)}>
-                        Bearbeiten
+                        {t('common.edit')}
                       </button>
                       <button className="btn btn-sm btn-ghost" onClick={() => undo(e)}>
-                        Rückgängig
+                        {t('quick.undo')}
                       </button>
                     </>
                   )}
                   {e.state === 'duplicate' && (
                     <button className="btn btn-sm" onClick={() => addCopy(e)}>
-                      + Exemplar
+                      {t('quick.addCopy')}
                     </button>
                   )}
                 </div>

@@ -1,12 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { Book, BookQuery, Location, SortField, Stats, Subject } from '@shared/types'
+import { LayoutGrid, List, Search } from 'lucide-react'
+import type { AppInfo, Book, BookQuery, Location, SortField, Stats, Subject } from '@shared/types'
+import type { Lang } from '@shared/i18n'
 import { Sidebar, type Filter } from './components/Sidebar'
+import { Ribbon } from './components/Ribbon'
 import { BookGrid, BookTable } from './components/BookViews'
 import { BookDetail } from './components/BookDetail'
 import { BookEditor } from './components/BookEditor'
 import { QuickCapture } from './components/QuickCapture'
 import { LocationManager, SubjectManager } from './components/Managers'
-import { flattenLocations } from './util'
+import { errMsg, flattenLocations } from './util'
+import { I18nProvider, useI18n } from './i18n'
 
 type View = 'grid' | 'table'
 type Dialog =
@@ -16,53 +20,79 @@ type Dialog =
   | { kind: 'subjects' }
   | { kind: 'locations' }
 
-const SORT_LABELS: Record<SortField, string> = {
-  title: 'Titel',
-  authors: 'Autor',
-  year: 'Erscheinungsjahr',
-  createdAt: 'Zuletzt erfasst',
-  rating: 'Bewertung',
-  callNumber: 'Signatur'
-}
-
-function loadPref<T extends string>(key: string, fallback: T): T {
+function loadPref<T>(key: string, fallback: T): T {
   try {
-    return (localStorage.getItem(key) as T) || fallback
+    const v = localStorage.getItem(key)
+    return v === null ? fallback : (JSON.parse(v) as T)
   } catch {
     return fallback
   }
 }
+function savePref(key: string, v: unknown) {
+  try {
+    localStorage.setItem(key, JSON.stringify(v))
+  } catch {
+    /* ignorieren */
+  }
+}
+function usePref<T>(key: string, fallback: T) {
+  const [v, setV] = useState<T>(() => loadPref(key, fallback))
+  useEffect(() => savePref(key, v), [key, v])
+  return [v, setV] as const
+}
 
-export default function App() {
+export default function App({ info }: { info: AppInfo }) {
+  const [lang, setLang] = useState<Lang>(info.language)
+  useEffect(() => {
+    document.documentElement.lang = lang
+  }, [lang])
+  return (
+    <I18nProvider lang={lang}>
+      <Shell
+        info={info}
+        onLang={(l) => {
+          setLang(l)
+          window.bibcraft.app.setLanguage(l)
+        }}
+      />
+    </I18nProvider>
+  )
+}
+
+function Shell({ info, onLang }: { info: AppInfo; onLang: (l: Lang) => void }) {
+  const { t, lang } = useI18n()
   const [books, setBooks] = useState<Book[]>([])
   const [subjects, setSubjects] = useState<Subject[]>([])
   const [locations, setLocations] = useState<Location[]>([])
   const [stats, setStats] = useState<Stats | null>(null)
   const [filter, setFilter] = useState<Filter>({ kind: 'all' })
   const [search, setSearch] = useState('')
-  const [sort, setSort] = useState<SortField>(() => loadPref('sort', 'title'))
-  const [view, setView] = useState<View>(() => loadPref('view', 'grid'))
+  const [sort, setSort] = usePref<SortField>('sort', 'title')
+  const [desc, setDesc] = usePref('desc', false)
+  const [view, setView] = usePref<View>('view', 'grid')
+  const [navPane, setNavPane] = usePref('navPane', true)
+  const [detailPane, setDetailPane] = usePref('detailPane', true)
   const [selected, setSelected] = useState<Book | null>(null)
   const [dialog, setDialog] = useState<Dialog>({ kind: 'none' })
   // Bearbeiten aus der Schnellerfassung heraus: Schnellerfassung bleibt darunter offen
   const [stackedEdit, setStackedEdit] = useState<Book | null>(null)
-  const [toast, setToast] = useState('')
+  const [toast, setToast] = useState(() => (info.migratedFromBibCat ? t('msg.migrated') : ''))
 
   const query = useMemo<BookQuery>(() => {
-    const q: BookQuery = { text: search, sort, desc: sort === 'createdAt' || sort === 'rating' }
+    const q: BookQuery = { text: search, sort, desc }
     if (filter.kind === 'status') q.readStatus = filter.status
     if (filter.kind === 'subject') q.subjectId = filter.id
     if (filter.kind === 'location') q.locationId = filter.id
     if (filter.kind === 'favorites') q.minRating = 4
     return q
-  }, [filter, search, sort])
+  }, [filter, search, sort, desc])
 
   const refresh = useCallback(async () => {
     const [b, s, l, st] = await Promise.all([
-      window.bibcat.books.list(query),
-      window.bibcat.subjects.list(),
-      window.bibcat.locations.list(),
-      window.bibcat.books.stats()
+      window.bibcraft.books.list(query),
+      window.bibcraft.subjects.list(),
+      window.bibcraft.locations.list(),
+      window.bibcraft.books.stats()
     ])
     setBooks(b)
     setSubjects(s)
@@ -72,23 +102,14 @@ export default function App() {
   }, [query])
 
   useEffect(() => {
-    const t = setTimeout(refresh, 120)
-    return () => clearTimeout(t)
+    const timer = setTimeout(refresh, 120)
+    return () => clearTimeout(timer)
   }, [refresh])
 
   useEffect(() => {
-    try {
-      localStorage.setItem('sort', sort)
-      localStorage.setItem('view', view)
-    } catch {
-      /* ignorieren */
-    }
-  }, [sort, view])
-
-  useEffect(() => {
     if (!toast) return
-    const t = setTimeout(() => setToast(''), 3500)
-    return () => clearTimeout(t)
+    const timer = setTimeout(() => setToast(''), 4000)
+    return () => clearTimeout(timer)
   }, [toast])
 
   // Tastenkürzel: Strg/Cmd+N neues Buch, Strg/Cmd+F Suche
@@ -113,14 +134,18 @@ export default function App() {
 
   async function patch(b: Book, p: Partial<Book>) {
     const { id, createdAt: _c, updatedAt: _u, ...rest } = { ...b, ...p }
-    const saved = await window.bibcat.books.update(id, rest)
-    setSelected(saved)
-    refresh()
+    try {
+      const saved = await window.bibcraft.books.update(id, rest)
+      setSelected(saved)
+      refresh()
+    } catch (e) {
+      setToast(errMsg(e))
+    }
   }
 
   async function remove(b: Book) {
-    if (!confirm(`„${b.title}" wirklich aus dem Katalog löschen?`)) return
-    await window.bibcat.books.remove(b.id)
+    if (!confirm(t('confirm.deleteBook', { title: b.title }))) return
+    await window.bibcraft.books.remove(b.id)
     setSelected(null)
     refresh()
   }
@@ -128,144 +153,186 @@ export default function App() {
   const heading = (() => {
     switch (filter.kind) {
       case 'all':
-        return 'Alle Bücher'
+        return t('nav.all')
       case 'favorites':
-        return 'Lieblingsbücher'
+        return t('nav.favorites')
       case 'status':
-        return { unread: 'Ungelesen', reading: 'Lese ich gerade', read: 'Gelesen', abandoned: 'Abgebrochen' }[
-          filter.status
-        ]
+        return t(`status.${filter.status}`)
       case 'subject':
-        return subjectMap.get(filter.id)?.name ?? 'Fachgebiet'
+        return subjectMap.get(filter.id)?.name ?? t('heading.subject')
       case 'location':
-        return locationNodes.get(filter.id)?.path ?? 'Standort'
+        return locationNodes.get(filter.id)?.path ?? t('heading.location')
     }
   })()
 
   const emptyCatalog = stats?.total === 0
+  const showDetail = detailPane && selected
 
   return (
-    <div className={`app ${selected ? 'with-detail' : ''}`}>
-      <Sidebar
-        filter={filter}
-        onFilter={(f) => {
-          setFilter(f)
-          setSelected(null)
-        }}
-        stats={stats}
-        subjects={subjects}
-        locations={locations}
-        onNew={() => setDialog({ kind: 'edit', book: null })}
+    <div className="shell">
+      <header className="titlebar">
+        <div className="titlebar-brand">
+          <span className="brand-mark">B</span>
+          <span>BibCraft</span>
+        </div>
+        <div className="titlebar-search">
+          <Search size={15} className="search-icon" />
+          <input
+            id="search"
+            type="search"
+            placeholder={t('search.placeholder')}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <div className="titlebar-end" />
+      </header>
+
+      <Ribbon
+        selected={selected}
         onQuick={() => setDialog({ kind: 'quick' })}
-        onManageSubjects={() => setDialog({ kind: 'subjects' })}
-        onManageLocations={() => setDialog({ kind: 'locations' })}
+        onNew={() => setDialog({ kind: 'edit', book: null })}
+        onEdit={() => selected && setDialog({ kind: 'edit', book: selected })}
+        onDelete={() => selected && remove(selected)}
+        onAddCopy={() => selected && patch(selected, { copies: selected.copies + 1 })}
+        onStatus={(readStatus) =>
+          selected &&
+          patch(selected, {
+            readStatus,
+            readDate:
+              readStatus === 'read' && !selected.readDate
+                ? new Date().toISOString().slice(0, 10)
+                : selected.readDate
+          })
+        }
+        onRating={(rating) => selected && patch(selected, { rating })}
+        onSubjects={() => setDialog({ kind: 'subjects' })}
+        onLocations={() => setDialog({ kind: 'locations' })}
+        sort={sort}
+        desc={desc}
+        onSort={(s) => {
+          setSort(s)
+          setDesc(s === 'createdAt' || s === 'rating')
+        }}
+        onDesc={setDesc}
+        view={view}
+        onView={setView}
+        navPane={navPane}
+        detailPane={detailPane}
+        onNavPane={setNavPane}
+        onDetailPane={setDetailPane}
+        lang={lang}
+        onLang={onLang}
         onExport={async () => {
-          const f = await window.bibcat.data.exportCsv()
-          if (f) setToast(`Exportiert nach ${f}`)
+          const f = await window.bibcraft.data.exportCsv()
+          if (f) setToast(t('msg.exported', { path: f }))
         }}
         onBackup={async () => {
-          const f = await window.bibcat.data.backup()
-          if (f) setToast(`Sicherung erstellt: ${f}`)
+          const f = await window.bibcraft.data.backup()
+          if (f) setToast(t('msg.backupDone', { path: f }))
         }}
+        onOpenFolder={() => window.bibcraft.data.openFolder()}
       />
 
-      <main className="main">
-        <header className="toolbar">
-          <div className="toolbar-title">
-            <h1>{heading}</h1>
-            <span className="muted">
-              {books.length} {books.length === 1 ? 'Titel' : 'Titel'}
-            </span>
-          </div>
-          <div className="search">
-            <span className="search-icon">⌕</span>
-            <input
-              id="search"
-              type="search"
-              placeholder="Titel, Autor, Schlagwort, Signatur, ISBN …"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-          <select value={sort} onChange={(e) => setSort(e.target.value as SortField)} aria-label="Sortierung">
-            {(Object.keys(SORT_LABELS) as SortField[]).map((s) => (
-              <option key={s} value={s}>
-                {SORT_LABELS[s]}
-              </option>
-            ))}
-          </select>
-          <div className="segmented">
-            <button
-              className={view === 'grid' ? 'active' : ''}
-              onClick={() => setView('grid')}
-              title="Raster"
-            >
-              ▦
-            </button>
-            <button
-              className={view === 'table' ? 'active' : ''}
-              onClick={() => setView('table')}
-              title="Liste"
-            >
-              ☰
-            </button>
-          </div>
-        </header>
+      <div className={`workspace ${navPane ? 'with-nav' : ''} ${showDetail ? 'with-detail' : ''}`}>
+        {navPane && (
+          <Sidebar
+            filter={filter}
+            onFilter={(f) => {
+              setFilter(f)
+              setSelected(null)
+            }}
+            stats={stats}
+            subjects={subjects}
+            locations={locations}
+            onManageSubjects={() => setDialog({ kind: 'subjects' })}
+            onManageLocations={() => setDialog({ kind: 'locations' })}
+          />
+        )}
 
-        <div className="content">
-          {emptyCatalog ? (
-            <div className="empty">
-              <div className="empty-mark">📚</div>
-              <h2>Willkommen bei BibCat</h2>
-              <p>
-                Lege zuerst deine Standorte (Räume, Regale) an und erfasse dann Bücher – am schnellsten per
-                Barcode.
-              </p>
-              <div className="row gap-sm center">
-                <button className="btn" onClick={() => setDialog({ kind: 'locations' })}>
-                  Standorte anlegen
-                </button>
-                <button className="btn btn-primary" onClick={() => setDialog({ kind: 'quick' })}>
-                  Bücher scannen
-                </button>
+        <main className="main">
+          <div className="content">
+            <div className="content-head">
+              <h1>{heading}</h1>
+              <span className="muted">
+                {books.length === 1 ? t('common.titles.one') : t('common.titles.other', { n: books.length })}
+              </span>
+            </div>
+            {emptyCatalog ? (
+              <div className="empty">
+                <div className="empty-mark">📚</div>
+                <h2>{t('empty.welcome')}</h2>
+                <p>{t('empty.intro')}</p>
+                <div className="row gap-sm center">
+                  <button className="btn" onClick={() => setDialog({ kind: 'locations' })}>
+                    {t('empty.locations')}
+                  </button>
+                  <button className="btn btn-primary" onClick={() => setDialog({ kind: 'quick' })}>
+                    {t('empty.scan')}
+                  </button>
+                </div>
               </div>
-            </div>
-          ) : books.length === 0 ? (
-            <div className="empty">
-              <p className="muted">Keine Bücher gefunden.</p>
-            </div>
-          ) : view === 'grid' ? (
-            <BookGrid
-              books={books}
-              selectedId={selected?.id ?? null}
-              onSelect={setSelected}
-              onOpen={(b) => setDialog({ kind: 'edit', book: b })}
-              subjects={subjectMap}
-            />
-          ) : (
-            <BookTable
-              books={books}
-              selectedId={selected?.id ?? null}
-              onSelect={setSelected}
-              onOpen={(b) => setDialog({ kind: 'edit', book: b })}
-              subjects={subjectMap}
-            />
-          )}
-        </div>
-      </main>
+            ) : books.length === 0 ? (
+              <div className="empty">
+                <p className="muted">{t('empty.noResults')}</p>
+              </div>
+            ) : view === 'grid' ? (
+              <BookGrid
+                books={books}
+                selectedId={selected?.id ?? null}
+                onSelect={setSelected}
+                onOpen={(b) => setDialog({ kind: 'edit', book: b })}
+                subjects={subjectMap}
+              />
+            ) : (
+              <BookTable
+                books={books}
+                selectedId={selected?.id ?? null}
+                onSelect={setSelected}
+                onOpen={(b) => setDialog({ kind: 'edit', book: b })}
+                subjects={subjectMap}
+              />
+            )}
+          </div>
+        </main>
 
-      {selected && (
-        <BookDetail
-          key={selected.id}
-          book={selected}
-          subject={selected.subjectId != null ? subjectMap.get(selected.subjectId) : undefined}
-          location={selected.locationId != null ? locationNodes.get(selected.locationId) : undefined}
-          onEdit={() => setDialog({ kind: 'edit', book: selected })}
-          onDelete={() => remove(selected)}
-          onPatch={(p) => patch(selected, p)}
-          onClose={() => setSelected(null)}
-        />
-      )}
+        {showDetail && (
+          <BookDetail
+            key={selected.id}
+            book={selected}
+            subject={selected.subjectId != null ? subjectMap.get(selected.subjectId) : undefined}
+            location={selected.locationId != null ? locationNodes.get(selected.locationId) : undefined}
+            onEdit={() => setDialog({ kind: 'edit', book: selected })}
+            onDelete={() => remove(selected)}
+            onPatch={(p) => patch(selected, p)}
+            onClose={() => setSelected(null)}
+          />
+        )}
+      </div>
+
+      <footer className="statusbar">
+        <span>{t('statusbar.books', { n: stats?.total ?? 0 })}</span>
+        <span>{t('statusbar.copies', { n: stats?.copies ?? 0 })}</span>
+        <span>{t('statusbar.read', { n: stats?.byStatus.read ?? 0 })}</span>
+        <span className="spacer" />
+        <span>{t('statusbar.shown', { n: books.length })}</span>
+        <div className="statusbar-views">
+          <button
+            className={view === 'grid' ? 'on' : ''}
+            onClick={() => setView('grid')}
+            title={t('cmd.grid')}
+          >
+            <LayoutGrid size={14} />
+          </button>
+          <button
+            className={view === 'table' ? 'on' : ''}
+            onClick={() => setView('table')}
+            title={t('cmd.table')}
+          >
+            <List size={14} />
+          </button>
+        </div>
+      </footer>
 
       {dialog.kind === 'edit' && (
         <BookEditor

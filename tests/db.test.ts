@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { Catalog, toFtsQuery } from '../src/main/db'
 import { EMPTY_BOOK, type BookInput } from '@shared/types'
 import { booksToCsv } from '../src/main/csv'
+import { translator } from '@shared/i18n'
 
 const book = (p: Partial<BookInput>): BookInput => ({ ...EMPTY_BOOK, ...p })
 
@@ -54,6 +55,14 @@ describe('Catalog', () => {
     expect(c.listBooks({ locationId: board.id }).map((b) => b.title)).toEqual(['A'])
   })
 
+  it('speichert Einstellungen und meldet übersetzbare Fehler', () => {
+    expect(c.getSetting('language')).toBeNull()
+    c.setSetting('language', 'en')
+    c.setSetting('language', 'de')
+    expect(c.getSetting('language')).toBe('de')
+    expect(() => c.saveSubject({ name: ' ', notation: '', color: '#000' })).toThrow('err.subjectName')
+  })
+
   it('verhindert Kreise in der Standorthierarchie', () => {
     const room = c.saveLocation({ name: 'Raum', parentId: null })
     const shelf = c.saveLocation({ name: 'Regal', parentId: room.id })
@@ -88,9 +97,13 @@ describe('Catalog', () => {
     const room = c.saveLocation({ name: 'Büro', parentId: null })
     const shelf = c.saveLocation({ name: 'Regal 2', parentId: room.id })
     c.createBook(book({ title: 'Titel; mit "Zeichen"', locationId: shelf.id }))
-    const csv = booksToCsv(c.listBooks(), c.listSubjects(), c.listLocations())
+    const csv = booksToCsv(c.listBooks(), c.listSubjects(), c.listLocations(), translator('de'))
     expect(csv.startsWith('﻿Signatur;Titel')).toBe(true)
     expect(csv).toContain('"Titel; mit ""Zeichen"""')
     expect(csv).toContain('Büro › Regal 2')
+    expect(csv).toContain(';Ungelesen;')
+    const en = booksToCsv(c.listBooks(), c.listSubjects(), c.listLocations(), translator('en'))
+    expect(en.startsWith('\uFEFFCall number;Title')).toBe(true)
+    expect(en).toContain(';Unread;')
   })
 })

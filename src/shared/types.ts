@@ -1,11 +1,6 @@
 export type ReadStatus = 'unread' | 'reading' | 'read' | 'abandoned'
 
-export const READ_STATUS_LABELS: Record<ReadStatus, string> = {
-  unread: 'Ungelesen',
-  reading: 'Lese ich gerade',
-  read: 'Gelesen',
-  abandoned: 'Abgebrochen'
-}
+export const READ_STATUSES: ReadStatus[] = ['unread', 'reading', 'read', 'abandoned']
 
 export interface Book {
   id: number
@@ -117,7 +112,20 @@ export interface IsbnResult {
   coverUrl?: string
 }
 
-export interface BibCatApi {
+export interface AppInfo {
+  version: string
+  platform: string
+  language: import('./i18n').Lang
+  dataDir: string
+  /** true, wenn beim Start ein Katalog aus BibCat übernommen wurde */
+  migratedFromBibCat: boolean
+}
+
+export interface BibCraftApi {
+  app: {
+    info(): Promise<AppInfo>
+    setLanguage(lang: import('./i18n').Lang): Promise<void>
+  }
   books: {
     list(q: BookQuery): Promise<Book[]>
     get(id: number): Promise<Book | null>
@@ -149,5 +157,6 @@ export interface BibCatApi {
   data: {
     exportCsv(): Promise<string | null>
     backup(): Promise<string | null>
+    openFolder(): Promise<void>
   }
 }

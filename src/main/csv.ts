@@ -1,5 +1,5 @@
 import type { Book, Location, Subject } from '@shared/types'
-import { READ_STATUS_LABELS } from '@shared/types'
+import type { Translate, TKey } from '@shared/i18n'
 
 function cell(v: unknown): string {
   const s = v == null ? '' : String(v)
@@ -19,37 +19,39 @@ export function locationPath(id: number | null, locations: Location[]): string {
   return parts.join(' › ')
 }
 
-/** CSV mit Semikolon und BOM, damit Excel (deutsche Einstellungen) die Datei direkt öffnet. */
-export function booksToCsv(books: Book[], subjects: Subject[], locations: Location[]): string {
+const COLUMNS: TKey[] = [
+  'csv.callNumber',
+  'csv.title',
+  'csv.subtitle',
+  'csv.authors',
+  'csv.contributors',
+  'csv.publisher',
+  'csv.place',
+  'csv.year',
+  'csv.edition',
+  'csv.isbn',
+  'csv.language',
+  'csv.pages',
+  'csv.binding',
+  'csv.series',
+  'csv.seriesNumber',
+  'csv.subject',
+  'csv.notation',
+  'csv.keywords',
+  'csv.location',
+  'csv.copies',
+  'csv.rating',
+  'csv.readStatus',
+  'csv.readDate',
+  'csv.acquired',
+  'csv.description',
+  'csv.notes'
+]
+
+/** CSV mit Semikolon und BOM, damit Excel die Datei direkt öffnet; Spaltennamen in der App-Sprache. */
+export function booksToCsv(books: Book[], subjects: Subject[], locations: Location[], t: Translate): string {
   const subj = new Map(subjects.map((s) => [s.id, s]))
-  const header = [
-    'Signatur',
-    'Titel',
-    'Untertitel',
-    'Autor(en)',
-    'Beteiligte',
-    'Verlag',
-    'Ort',
-    'Jahr',
-    'Auflage',
-    'ISBN',
-    'Sprache',
-    'Seiten',
-    'Einband',
-    'Reihe',
-    'Band',
-    'Fachgebiet',
-    'Notation',
-    'Schlagworte',
-    'Standort',
-    'Exemplare',
-    'Bewertung',
-    'Lesestatus',
-    'Gelesen am',
-    'Erworben am',
-    'Beschreibung',
-    'Notizen'
-  ]
+  const header = COLUMNS.map((k) => t(k))
   const rows = books.map((b) => {
     const s = b.subjectId != null ? subj.get(b.subjectId) : undefined
     return [
@@ -74,7 +76,7 @@ export function booksToCsv(books: Book[], subjects: Subject[], locations: Locati
       locationPath(b.locationId, locations),
       b.copies,
       b.rating || '',
-      READ_STATUS_LABELS[b.readStatus],
+      t(`status.${b.readStatus}`),
       b.readDate,
       b.acquiredDate,
       b.description,

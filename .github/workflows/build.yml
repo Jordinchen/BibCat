@@ -27,10 +27,10 @@ jobs:
         include:
           - os: windows-latest
             script: dist:win
-            artifact: BibCat-Windows
+            artifact: BibCraft-Windows
           - os: macos-latest
             script: dist:mac
-            artifact: BibCat-macOS
+            artifact: BibCraft-macOS
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4

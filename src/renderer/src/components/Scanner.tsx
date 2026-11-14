@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { BrowserMultiFormatReader, type IScannerControls } from '@zxing/browser'
 import { BarcodeFormat, DecodeHintType } from '@zxing/library'
 import { isValidIsbn13 } from '@shared/isbn'
+import { useI18n } from '../i18n'
 
 interface Props {
   /** Wird mit einer gültigen ISBN-13 aufgerufen */
@@ -15,6 +16,9 @@ interface Props {
  * (Bookland), damit Preis- oder Artikel-Barcodes ignoriert werden.
  */
 export function Scanner({ onIsbn, continuous }: Props) {
+  const { t } = useI18n()
+  const tr = useRef(t)
+  tr.current = t
   const video = useRef<HTMLVideoElement>(null)
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([])
   const [deviceId, setDeviceId] = useState<string>('')
@@ -28,9 +32,9 @@ export function Scanner({ onIsbn, continuous }: Props) {
     BrowserMultiFormatReader.listVideoInputDevices()
       .then((d) => {
         setDevices(d)
-        if (!d.length) setError('Keine Kamera gefunden.')
+        if (!d.length) setError(tr.current('scanner.noCamera'))
       })
-      .catch(() => setError('Kamerazugriff nicht möglich.'))
+      .catch(() => setError(tr.current('scanner.noAccess')))
   }, [])
 
   useEffect(() => {
@@ -62,11 +66,7 @@ export function Scanner({ onIsbn, continuous }: Props) {
         setError('')
       })
       .catch((e: Error) => {
-        setError(
-          e?.name === 'NotAllowedError'
-            ? 'Kamerazugriff wurde verweigert. Bitte in den Systemeinstellungen erlauben.'
-            : 'Kamera konnte nicht gestartet werden.'
-        )
+        setError(e?.name === 'NotAllowedError' ? tr.current('scanner.denied') : tr.current('scanner.failed'))
       })
 
     return () => {
@@ -83,13 +83,13 @@ export function Scanner({ onIsbn, continuous }: Props) {
         {error && <div className="scanner-error">{error}</div>}
       </div>
       <div className="scanner-bar">
-        <span className="muted">Barcode auf der Buchrückseite in den Rahmen halten.</span>
+        <span className="muted">{t('scanner.hint')}</span>
         {devices.length > 1 && (
           <select value={deviceId} onChange={(e) => setDeviceId(e.target.value)}>
-            <option value="">Standardkamera</option>
+            <option value="">{t('scanner.default')}</option>
             {devices.map((d) => (
               <option key={d.deviceId} value={d.deviceId}>
-                {d.label || 'Kamera'}
+                {d.label || t('scanner.camera')}
               </option>
             ))}
           </select>

@@ -1,4 +1,6 @@
 import { useEffect, useRef, type ReactNode } from 'react'
+import { X } from 'lucide-react'
+import { useI18n } from '../i18n'
 
 interface Props {
   title: string
@@ -12,6 +14,7 @@ interface Props {
 const stack: symbol[] = []
 
 export function Modal({ title, onClose, children, footer, wide }: Props) {
+  const { t } = useI18n()
   const close = useRef(onClose)
   close.current = onClose
   useEffect(() => {
@@ -32,8 +35,8 @@ export function Modal({ title, onClose, children, footer, wide }: Props) {
       <div className={`modal ${wide ? 'modal-wide' : ''}`} role="dialog" aria-label={title}>
         <header className="modal-head">
           <h2>{title}</h2>
-          <button className="icon-btn" onClick={onClose} aria-label="Schließen">
-            ✕
+          <button className="icon-btn" onClick={onClose} aria-label={t('common.close')}>
+            <X size={18} />
           </button>
         </header>
         <div className="modal-body">{children}</div>

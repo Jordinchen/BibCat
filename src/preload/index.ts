@@ -1,12 +1,13 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { BibCatApi } from '@shared/types'
+import type { BibCraftApi } from '@shared/types'
 
 const call =
   (channel: string) =>
   (...args: unknown[]) =>
     ipcRenderer.invoke(channel, ...args)
 
-const api: BibCatApi = {
+const api: BibCraftApi = {
+  app: { info: call('app:info'), setLanguage: call('app:setLanguage') },
   books: {
     list: call('books:list'),
     get: call('books:get'),
@@ -28,7 +29,11 @@ const api: BibCatApi = {
   },
   isbn: { lookup: call('isbn:lookup') },
   covers: { download: call('covers:download'), pick: call('covers:pick') },
-  data: { exportCsv: call('data:exportCsv'), backup: call('data:backup') }
-} as BibCatApi
+  data: {
+    exportCsv: call('data:exportCsv'),
+    backup: call('data:backup'),
+    openFolder: call('data:openFolder')
+  }
+} as BibCraftApi
 
-contextBridge.exposeInMainWorld('bibcat', api)
+contextBridge.exposeInMainWorld('bibcraft', api)
