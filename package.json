@@ -1,6 +1,6 @@
 {
   "name": "bibcraft",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Katalogisierung privater Bibliotheksbestände / Private library cataloguing",
   "main": "out/main/index.js",
   "scripts": {

@@ -13,6 +13,7 @@ import { StatisticsView } from './components/StatisticsView'
 import { LocationManager, SubjectManager } from './components/Managers'
 import { AboutDialog } from './components/About'
 import { UpdateNotice } from './components/UpdateNotice'
+import iconSmall from './assets/icon-small.png'
 import { LibraryManager, LibrarySwitcher, NewLibraryDialog, openLibraryDialog } from './components/Libraries'
 import { errMsg, flattenLocations } from './util'
 import { I18nProvider, useI18n } from './i18n'
@@ -332,7 +333,7 @@ function Shell({ info, onLang }: { info: AppInfo; onLang: (l: Lang) => void }) {
     <div className="shell">
       <header className="titlebar">
         <div className="titlebar-brand">
-          <span className="brand-mark">B</span>
+          <img className="brand-icon" src={iconSmall} alt="" draggable={false} />
           <span>BibCraft</span>
           <LibrarySwitcher
             current={info.library}

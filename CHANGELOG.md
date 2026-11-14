@@ -3,6 +3,12 @@
 Alle nennenswerten Änderungen an BibCraft. Die Versionsnummern folgen
 [Semantic Versioning](https://semver.org/lang/de/).
 
+## 0.5.1 – 2026-11-14
+
+- Neues App-Symbol: ein Phönix im Stil eines alten Kupferstichs auf Pink. In sehr kleinen
+  Größen (Taskleiste, Dateilisten) zeigt das Symbol nur den Kopf, damit es erkennbar bleibt.
+- Das Symbol erscheint auch in der Titelleiste und unter *Über BibCraft*.
+
 ## 0.5.0 – 2026-11-14
 
 **Automatische Updates**

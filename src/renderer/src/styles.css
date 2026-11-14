@@ -2231,3 +2231,17 @@ html:not([data-platform='darwin']) .titlebar-end {
   font-size: 12px;
   margin-top: 2px;
 }
+
+/* App-Symbol (Phönix) */
+.brand-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  box-shadow: 0 0 0 1px rgb(59 10 23 / 0.25);
+}
+.about-icon {
+  width: 72px;
+  height: 72px;
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+}

@@ -17,6 +17,8 @@ publish:
   repo: BibCat
   releaseType: release
 win:
+  # Kleine Größen (16–32 px) zeigen nur den Kopf des Phönix, damit er erkennbar bleibt
+  icon: build/icon.ico
   target:
     - target: nsis
       arch: [x64]
@@ -30,6 +32,7 @@ nsis:
   # Lizenz (GPL-3.0) im Installer anzeigen
   license: LICENSE
 mac:
+  icon: build/icon.icns
   category: public.app-category.reference
   artifactName: BibCraft-${version}-${arch}.${ext}
   target:

@@ -3,6 +3,7 @@ import { ExternalLink, RefreshCw } from 'lucide-react'
 import { describeUpdate, useUpdateState } from '../updates'
 import licenseText from '../../../../LICENSE?raw'
 import thirdParty from '../third-party.json'
+import appIcon from '../assets/icon.png'
 import { Modal } from './Modal'
 import { useI18n } from '../i18n'
 
@@ -18,7 +19,7 @@ export function AboutDialog({ version, onClose }: { version: string; onClose: ()
   return (
     <Modal title={t('about.title')} onClose={onClose}>
       <div className="about-head">
-        <span className="brand-mark about-mark">B</span>
+        <img className="about-icon" src={appIcon} alt="" draggable={false} />
         <div>
           <h3 className="about-name">BibCraft</h3>
           <span className="muted">
