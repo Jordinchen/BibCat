@@ -26,6 +26,10 @@ mit Systematik-Notation, Schlagworte, Exemplare und verschachtelte Standorte.
 - **Sprachen**: Deutsch und Englisch, umschaltbar unter *Ansicht › Sprache*. Beim ersten Start
   richtet sich die Sprache nach dem Betriebssystem.
 - Raster- und Listenansicht, ein- und ausblendbare Bereiche, Hell-/Dunkelmodus nach System.
+- **Mehrere Bibliotheken**: jede ein eigener Katalog mit eigenen Standorten, Fachgebieten und
+  Büchern, z. B. privat, Verein und Ferienhaus. Umschalten über den Bibliotheksnamen in der
+  Titelleiste; anlegen, öffnen, umbenennen und verwalten unter *Datei › Bibliothek*. Eine
+  Bibliothek ist ein normaler Ordner und kann an einem beliebigen Ort liegen.
 - **Massenbearbeitung**: mehrere Bücher markieren (Strg+Klick, Umschalt+Klick, Strg+A) und
   gemeinsam Standort, Fachgebiet, Lesestatus, Bewertung oder Schlagworte ändern – oder die Auswahl
   einfach auf einen Standort, ein Fachgebiet oder einen Lesestatus im Navigationsbereich ziehen.
@@ -38,6 +42,8 @@ mit Systematik-Notation, Schlagworte, Exemplare und verschachtelte Standorte.
 Tastenkürzel: `Strg/⌘ + N` neues Buch, `Strg/⌘ + F` Suche, `Strg/⌘ + A` alle auswählen,
 `Entf` Auswahl löschen, `Strg/⌘ + F1` Menüband, `Esc` Auswahl aufheben bzw. Dialog schließen.
 
+![Bibliotheken verwalten](docs/bibliotheken.png)
+
 | Massenbearbeitung | Statistik |
 |---|---|
 | ![Massenbearbeitung](docs/massenbearbeitung.png) | ![Statistik](docs/statistik.png) |
@@ -46,14 +52,17 @@ Tastenkürzel: `Strg/⌘ + N` neues Buch, `Strg/⌘ + F` Suche, `Strg/⌘ + A` a
 
 ## Daten
 
-Der Katalog ist eine SQLite-Datenbank (`katalog.sqlite`), die Cover liegen als Bilddateien daneben:
+Jede Bibliothek ist ein Ordner mit einer SQLite-Datenbank (`katalog.sqlite`) und den Covern als
+Bilddateien im Unterordner `covers`. Die erste Bibliothek und die Programmeinstellungen liegen hier:
 
-| System  | Ort |
-|---------|-----|
-| Windows | `%APPDATA%\BibCraft\Katalog\` |
-| macOS   | `~/Library/Application Support/BibCraft/Katalog/` |
+| System  | Erste Bibliothek | Weitere Bibliotheken (Standard) | Einstellungen |
+|---------|------------------|---------------------------------|---------------|
+| Windows | `%APPDATA%\BibCraft\Katalog\` | `%APPDATA%\BibCraft\Bibliotheken\` | `%APPDATA%\BibCraft\profile.json` |
+| macOS   | `~/Library/Application Support/BibCraft/Katalog/` | `…/BibCraft/Bibliotheken/` | `…/BibCraft/profile.json` |
 
-Mit der Umgebungsvariable `BIBCRAFT_DATA_DIR` lässt sich ein anderer Ordner verwenden.
+`profile.json` enthält die Liste der Bibliotheken, die zuletzt geöffnete und die Sprache.
+Mit den Umgebungsvariablen `BIBCRAFT_DATA_DIR` (Bibliothek) und `BIBCRAFT_PROFILE_DIR`
+(Einstellungen) lassen sich andere Orte verwenden, z. B. für eine portable Installation.
 
 **Umstieg von BibCat:** Bis Version 0.1 hieß das Programm BibCat. BibCraft übernimmt einen
 vorhandenen BibCat-Katalog beim ersten Start automatisch (Kopie; das Original unter

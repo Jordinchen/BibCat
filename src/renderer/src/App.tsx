@@ -11,6 +11,7 @@ import { BookEditor } from './components/BookEditor'
 import { QuickCapture } from './components/QuickCapture'
 import { StatisticsView } from './components/StatisticsView'
 import { LocationManager, SubjectManager } from './components/Managers'
+import { LibraryManager, LibrarySwitcher, NewLibraryDialog, openLibraryDialog } from './components/Libraries'
 import { errMsg, flattenLocations } from './util'
 import { I18nProvider, useI18n } from './i18n'
 
@@ -21,6 +22,8 @@ type Dialog =
   | { kind: 'quick' }
   | { kind: 'subjects' }
   | { kind: 'locations' }
+  | { kind: 'newLibrary' }
+  | { kind: 'libraries' }
 
 interface Toast {
   text: string
@@ -92,8 +95,18 @@ function Shell({ info, onLang }: { info: AppInfo; onLang: (l: Lang) => void }) {
   // Bearbeiten aus der Schnellerfassung heraus: Schnellerfassung bleibt darunter offen
   const [stackedEdit, setStackedEdit] = useState<Book | null>(null)
   const [toast, setToast] = useState<Toast | null>(() =>
-    info.migratedFromBibCat ? { text: t('msg.migrated') } : null
+    info.libraryFallback
+      ? { text: t('msg.libraryFallback', { name: info.libraryFallback }) }
+      : info.migratedFromBibCat
+        ? { text: t('msg.migrated') }
+        : null
   )
+
+  useEffect(() => {
+    document.title = `${info.library.name} – BibCraft`
+  }, [info.library.name])
+
+  const openLibrary = () => openLibraryDialog().catch((e) => setToast({ text: errMsg(e) }))
 
   const showStats = filter.kind === 'statistics'
 
@@ -318,6 +331,13 @@ function Shell({ info, onLang }: { info: AppInfo; onLang: (l: Lang) => void }) {
         <div className="titlebar-brand">
           <span className="brand-mark">B</span>
           <span>BibCraft</span>
+          <LibrarySwitcher
+            current={info.library}
+            onNew={() => setDialog({ kind: 'newLibrary' })}
+            onOpen={openLibrary}
+            onManage={() => setDialog({ kind: 'libraries' })}
+            onError={(text) => setToast({ text })}
+          />
         </div>
         <div className="titlebar-search">
           <Search size={15} className="search-icon" />
@@ -383,6 +403,9 @@ function Shell({ info, onLang }: { info: AppInfo; onLang: (l: Lang) => void }) {
           if (f) setToast({ text: t('msg.backupDone', { path: f }) })
         }}
         onOpenFolder={() => window.bibcraft.data.openFolder()}
+        onNewLibrary={() => setDialog({ kind: 'newLibrary' })}
+        onOpenLibrary={openLibrary}
+        onManageLibraries={() => setDialog({ kind: 'libraries' })}
       />
 
       <div className={`workspace ${navPane ? 'with-nav' : ''} ${showSide ? 'with-detail' : ''}`}>
@@ -555,6 +578,13 @@ function Shell({ info, onLang }: { info: AppInfo; onLang: (l: Lang) => void }) {
       )}
       {dialog.kind === 'subjects' && (
         <SubjectManager subjects={subjects} onClose={() => setDialog({ kind: 'none' })} onChanged={refresh} />
+      )}
+      {dialog.kind === 'newLibrary' && <NewLibraryDialog onClose={() => setDialog({ kind: 'none' })} />}
+      {dialog.kind === 'libraries' && (
+        <LibraryManager
+          onClose={() => setDialog({ kind: 'none' })}
+          onNew={() => setDialog({ kind: 'newLibrary' })}
+        />
       )}
       {dialog.kind === 'locations' && (
         <LocationManager

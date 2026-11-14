@@ -135,6 +135,42 @@ const de = {
   'stats.decade': '{d}er',
   'stats.stars.one': '1 Stern',
   'stats.stars.other': '{n} Sterne',
+  'library.defaultName': 'Meine Bibliothek',
+  'library.switch': 'Bibliothek wechseln',
+  'library.menuNew': 'Neue Bibliothek …',
+  'library.menuOpen': 'Bibliothek öffnen …',
+  'library.menuManage': 'Bibliotheken verwalten …',
+  'group.library': 'Bibliothek',
+  'cmd.newLibrary': 'Neue\nBibliothek',
+  'cmd.openLibrary': 'Bibliothek\nöffnen',
+  'cmd.manageLibraries': 'Biblio-\ntheken',
+  'libraries.title': 'Bibliotheken',
+  'libraries.intro':
+    'Jede Bibliothek ist ein eigener Katalog mit eigenen Standorten, Fachgebieten und Büchern. Sie liegt als Ordner auf deinem Rechner – auf Wunsch auch in einem Cloud-Ordner.',
+  'libraries.current': 'geöffnet',
+  'libraries.open': 'Öffnen',
+  'libraries.rename': 'Umbenennen',
+  'libraries.reveal': 'Im Ordner zeigen',
+  'libraries.forget': 'Aus Liste entfernen',
+  'libraries.confirmForget':
+    '„{name}" aus der Liste entfernen? Die Dateien bleiben erhalten und lassen sich später über „Bibliothek öffnen" wieder einbinden.',
+  'libraries.missing': 'Ordner nicht gefunden',
+  'libraries.newTitle': 'Neue Bibliothek',
+  'libraries.name': 'Name',
+  'libraries.namePlaceholder': 'z. B. Vereinsbibliothek oder Ferienhaus',
+  'libraries.location': 'Speicherort',
+  'libraries.locationDefault': 'Im BibCraft-Datenordner (empfohlen)',
+  'libraries.chooseLocation': 'Anderen Ort wählen …',
+  'libraries.resetLocation': 'Standard verwenden',
+  'libraries.create': 'Anlegen und öffnen',
+  'main.openLibraryTitle': 'Bibliotheksordner öffnen',
+  'main.chooseLibraryLocation': 'Speicherort für die neue Bibliothek wählen',
+  'err.notALibrary': 'In diesem Ordner liegt keine BibCraft-Bibliothek (die Datei katalog.sqlite fehlt).',
+  'err.libraryMissing': 'Der Ordner der Bibliothek wurde nicht gefunden: {path}',
+  'err.libraryName': 'Bitte einen Namen angeben.',
+  'err.forgetCurrent': 'Die geöffnete Bibliothek kann nicht aus der Liste entfernt werden.',
+  'msg.libraryFallback':
+    'Die zuletzt geöffnete Bibliothek wurde nicht gefunden. Geöffnet ist jetzt „{name}".',
   'heading.subject': 'Fachgebiet',
   'heading.location': 'Standort',
 
@@ -445,6 +481,41 @@ const en: Record<TKey, string> = {
   'stats.decade': '{d}s',
   'stats.stars.one': '1 star',
   'stats.stars.other': '{n} stars',
+  'library.defaultName': 'My library',
+  'library.switch': 'Switch library',
+  'library.menuNew': 'New library …',
+  'library.menuOpen': 'Open library …',
+  'library.menuManage': 'Manage libraries …',
+  'group.library': 'Library',
+  'cmd.newLibrary': 'New\nlibrary',
+  'cmd.openLibrary': 'Open\nlibrary',
+  'cmd.manageLibraries': 'Libraries',
+  'libraries.title': 'Libraries',
+  'libraries.intro':
+    'Each library is a separate catalog with its own locations, subjects and books. It is stored as a folder on your computer – in a cloud folder too, if you like.',
+  'libraries.current': 'open',
+  'libraries.open': 'Open',
+  'libraries.rename': 'Rename',
+  'libraries.reveal': 'Show in folder',
+  'libraries.forget': 'Remove from list',
+  'libraries.confirmForget':
+    'Remove "{name}" from the list? Its files are kept and can be added again later via "Open library".',
+  'libraries.missing': 'Folder not found',
+  'libraries.newTitle': 'New library',
+  'libraries.name': 'Name',
+  'libraries.namePlaceholder': 'e.g. Club library or Holiday home',
+  'libraries.location': 'Location',
+  'libraries.locationDefault': "In BibCraft's data folder (recommended)",
+  'libraries.chooseLocation': 'Choose another location …',
+  'libraries.resetLocation': 'Use default',
+  'libraries.create': 'Create and open',
+  'main.openLibraryTitle': 'Open library folder',
+  'main.chooseLibraryLocation': 'Choose a location for the new library',
+  'err.notALibrary': 'This folder does not contain a BibCraft library (katalog.sqlite is missing).',
+  'err.libraryMissing': 'The library folder was not found: {path}',
+  'err.libraryName': 'Please enter a name.',
+  'err.forgetCurrent': 'The library that is open cannot be removed from the list.',
+  'msg.libraryFallback': 'The last library could not be found. "{name}" is open now.',
   'heading.subject': 'Subject',
   'heading.location': 'Location',
 
@@ -651,7 +722,10 @@ export function localeOf(lang: Lang): string {
 
 /** Fehler mit übersetzbarem Schlüssel; der Hauptprozess übersetzt beim Weiterreichen. */
 export class AppError extends Error {
-  constructor(public readonly key: TKey) {
+  constructor(
+    public readonly key: TKey,
+    public readonly params?: Record<string, string | number>
+  ) {
     super(key)
   }
 }

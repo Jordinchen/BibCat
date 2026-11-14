@@ -162,12 +162,38 @@ export interface AppInfo {
   dataDir: string
   /** true, wenn beim Start ein Katalog aus BibCat übernommen wurde */
   migratedFromBibCat: boolean
+  /** Die geöffnete Bibliothek */
+  library: LibraryInfo
+  /** Name der Ersatzbibliothek, wenn die zuletzt geöffnete fehlte */
+  libraryFallback: string | null
+}
+
+export interface LibraryInfo {
+  path: string
+  name: string
+  current: boolean
+  /** false, wenn der Ordner (z. B. ein nicht verbundenes Laufwerk) fehlt */
+  exists: boolean
 }
 
 export interface BibCraftApi {
   app: {
     info(): Promise<AppInfo>
     setLanguage(lang: import('./i18n').Lang): Promise<void>
+  }
+  libraries: {
+    list(): Promise<LibraryInfo[]>
+    /** Neue Bibliothek anlegen; ohne `parentDir` im BibCraft-Datenordner */
+    create(name: string, parentDir?: string | null): Promise<LibraryInfo>
+    /** Ordnerauswahl für den Speicherort einer neuen Bibliothek */
+    pickLocation(): Promise<string | null>
+    /** Bestehende Bibliothek per Ordnerauswahl einbinden */
+    openDialog(): Promise<LibraryInfo | null>
+    /** Bibliothek wechseln; die Oberfläche lädt danach neu */
+    switchTo(path: string): Promise<void>
+    rename(path: string, name: string): Promise<void>
+    forget(path: string): Promise<void>
+    reveal(path: string): Promise<void>
   }
   books: {
     list(q: BookQuery): Promise<Book[]>

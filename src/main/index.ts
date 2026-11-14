@@ -12,44 +12,94 @@ import {
 } from 'electron'
 import { createHash } from 'node:crypto'
 import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { extname, join } from 'node:path'
+import { basename, extname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { Catalog } from './db'
 import { lookupIsbn } from './lookup'
 import { booksToCsv } from './csv'
+import { DB_FILE, folderName, freeFolder, libraryDirFrom, Profile, samePath } from './libraries'
 import { AppError, isLang, langFromLocale, translator, type Lang } from '@shared/i18n'
+import type { LibraryInfo } from '@shared/types'
 
 protocol.registerSchemesAsPrivileged([
   { scheme: 'cover', privileges: { standard: true, secure: true, supportFetchAPI: true } }
 ])
 
+// Eigenes Profil (z. B. für Tests oder portable Nutzung)
+if (process.env.BIBCRAFT_PROFILE_DIR) app.setPath('userData', process.env.BIBCRAFT_PROFILE_DIR)
+
 /** Farben der Titelleiste (müssen zu --titlebar in styles.css passen) */
 const TITLEBAR = { color: '#F58092', symbolColor: '#3b0a17', height: 40 }
 
+let profile: Profile
 let catalog: Catalog
 let coverDir: string
 let dataDirPath: string
+let libraryName = ''
 let migratedFromBibCat = false
+let libraryFallback: string | null = null
+let mainWindow: BrowserWindow | null = null
 let lang: Lang = 'de'
 const t = (...a: Parameters<ReturnType<typeof translator>>) => translator(lang)(...a)
 
+/** Ordner, in dem BibCraft neue Bibliotheken standardmäßig anlegt */
+const librariesRoot = () => join(app.getPath('userData'), 'Bibliotheken')
+
 /**
- * Datenordner bestimmen. Bis Version 0.1 hieß die App „BibCat" und speicherte unter
+ * Ordner der ersten Bibliothek. Bis Version 0.1 hieß die App „BibCat" und speicherte unter
  * …/BibCat/Katalog. Gibt es dort einen Katalog und unter BibCraft noch keinen,
  * wird er einmalig kopiert (das Original bleibt als Rückfallebene erhalten).
  */
-function resolveDataDir(): string {
+function defaultLibraryDir(): string {
   const custom = process.env.BIBCRAFT_DATA_DIR || process.env.BIBCAT_DATA_DIR
   const dir = custom || join(app.getPath('userData'), 'Katalog')
   if (!custom) {
     const legacy = join(app.getPath('appData'), 'BibCat', 'Katalog')
-    if (!existsSync(join(dir, 'katalog.sqlite')) && existsSync(join(legacy, 'katalog.sqlite'))) {
+    if (!existsSync(join(dir, DB_FILE)) && existsSync(join(legacy, DB_FILE))) {
       cpSync(legacy, dir, { recursive: true })
       migratedFromBibCat = true
     }
   }
-  mkdirSync(join(dir, 'covers'), { recursive: true })
   return dir
+}
+
+/** Liest den Namen einer Bibliothek aus ihrer Datenbank (legt ihn bei Bedarf an). */
+function nameOf(c: Catalog, dir: string): string {
+  let name = c.getSetting('libraryName')
+  if (!name) {
+    name = samePath(dir, defaultLibraryDir()) ? t('library.defaultName') : basename(dir)
+    c.setSetting('libraryName', name)
+  }
+  return name
+}
+
+/** Öffnet eine Bibliothek. Erst wenn das klappt, wird die bisherige geschlossen. */
+function activate(dir: string, create = false): void {
+  if (!create && !existsSync(join(dir, DB_FILE))) throw new AppError('err.libraryMissing', { path: dir })
+  mkdirSync(join(dir, 'covers'), { recursive: true })
+  const next = new Catalog(join(dir, DB_FILE))
+  catalog?.close()
+  catalog = next
+  dataDirPath = dir
+  coverDir = join(dir, 'covers')
+  libraryName = nameOf(next, dir)
+  profile.upsert(dir, libraryName)
+  profile.setCurrent(dir)
+}
+
+/** Kurz öffnen, etwas tun, schließen – für Bibliotheken, die gerade nicht aktiv sind */
+function withCatalog<T>(dir: string, fn: (c: Catalog) => T): T {
+  if (samePath(dir, dataDirPath)) return fn(catalog)
+  const c = new Catalog(join(dir, DB_FILE))
+  try {
+    return fn(c)
+  } finally {
+    c.close()
+  }
+}
+
+function libraryInfo(path: string, name: string): LibraryInfo {
+  return { path, name, current: samePath(path, dataDirPath), exists: existsSync(join(path, DB_FILE)) }
 }
 
 function storeCover(bytes: Buffer, ext: string): string {
@@ -65,7 +115,7 @@ function handle(channel: string, fn: (e: IpcMainInvokeEvent, ...args: any[]) => 
     try {
       return await fn(e, ...args)
     } catch (err) {
-      if (err instanceof AppError) throw new Error(t(err.key))
+      if (err instanceof AppError) throw new Error(t(err.key, err.params))
       throw err
     }
   })
@@ -77,13 +127,79 @@ function registerIpc(): void {
     platform: process.platform,
     language: lang,
     dataDir: dataDirPath,
-    migratedFromBibCat
+    migratedFromBibCat,
+    library: libraryInfo(dataDirPath, libraryName),
+    libraryFallback
   }))
   handle('app:setLanguage', (_e, l: unknown) => {
     if (!isLang(l)) return
     lang = l
-    catalog.setSetting('language', l)
+    profile.setLanguage(l)
   })
+
+  // ---------- Bibliotheken ----------
+
+  handle('libraries:list', () =>
+    profile.libraries
+      .map((l) => libraryInfo(l.path, l.name))
+      .sort((a, b) => a.name.localeCompare(b.name, lang))
+  )
+  handle('libraries:create', (_e, rawName: string, parentDir?: string | null) => {
+    const name = String(rawName ?? '').trim()
+    if (!name) throw new AppError('err.libraryName')
+    const parent = parentDir || librariesRoot()
+    mkdirSync(parent, { recursive: true })
+    const dir = freeFolder(parent, name)
+    mkdirSync(join(dir, 'covers'), { recursive: true })
+    const c = new Catalog(join(dir, DB_FILE))
+    c.setSetting('libraryName', name)
+    c.close()
+    profile.upsert(dir, name)
+    return libraryInfo(dir, name)
+  })
+  handle('libraries:pickLocation', async () => {
+    const r = await dialog.showOpenDialog({
+      title: t('main.chooseLibraryLocation'),
+      properties: ['openDirectory', 'createDirectory']
+    })
+    return r.canceled ? null : (r.filePaths[0] ?? null)
+  })
+  handle('libraries:openDialog', async () => {
+    const r = await dialog.showOpenDialog({
+      title: t('main.openLibraryTitle'),
+      properties: ['openDirectory']
+    })
+    if (r.canceled || !r.filePaths[0]) return null
+    const dir = libraryDirFrom(r.filePaths[0])
+    if (!dir) throw new AppError('err.notALibrary')
+    const name = withCatalog(dir, (c) => nameOf(c, dir))
+    profile.upsert(dir, name)
+    return libraryInfo(dir, name)
+  })
+  handle('libraries:switchTo', (_e, dir: string) => {
+    if (samePath(dir, dataDirPath)) return
+    activate(dir)
+    libraryFallback = null
+    migratedFromBibCat = false
+  })
+  handle('libraries:rename', (_e, dir: string, rawName: string) => {
+    const name = String(rawName ?? '').trim()
+    if (!name) throw new AppError('err.libraryName')
+    if (!existsSync(join(dir, DB_FILE))) throw new AppError('err.libraryMissing', { path: dir })
+    withCatalog(dir, (c) => c.setSetting('libraryName', name))
+    profile.upsert(dir, name)
+    if (samePath(dir, dataDirPath)) libraryName = name
+  })
+  handle('libraries:forget', (_e, dir: string) => {
+    if (samePath(dir, dataDirPath)) throw new AppError('err.forgetCurrent')
+    profile.forget(dir)
+  })
+  handle('libraries:reveal', (_e, dir: string) => {
+    if (existsSync(join(dir, DB_FILE))) shell.showItemInFolder(join(dir, DB_FILE))
+    else shell.openPath(dir)
+  })
+
+  // ---------- Bücher, Fachgebiete, Standorte ----------
 
   handle('books:list', (_e, q) => catalog.listBooks(q))
   handle('books:get', (_e, id: number) => catalog.getBook(id))
@@ -130,10 +246,12 @@ function registerIpc(): void {
     return storeCover(readFileSync(file), extname(file).toLowerCase() || '.jpg')
   })
 
+  // ---------- Export und Sicherung ----------
+
   handle('data:exportCsv', async () => {
     const r = await dialog.showSaveDialog({
       title: t('main.exportTitle'),
-      defaultPath: t('main.exportFile', { date: new Date().toISOString().slice(0, 10) }),
+      defaultPath: `${folderName(libraryName)} – ${t('main.exportFile', { date: new Date().toISOString().slice(0, 10) })}`,
       filters: [{ name: 'CSV', extensions: ['csv'] }]
     })
     if (r.canceled || !r.filePath) return null
@@ -149,9 +267,9 @@ function registerIpc(): void {
     })
     if (r.canceled || !r.filePaths[0]) return null
     const stamp = new Date().toISOString().replace(/[:T]/g, '-').slice(0, 19)
-    const target = join(r.filePaths[0], t('main.backupFolder', { stamp }))
+    const target = join(r.filePaths[0], `${folderName(libraryName)} – ${t('main.backupFolder', { stamp })}`)
     mkdirSync(join(target, 'covers'), { recursive: true })
-    catalog.backupTo(join(target, 'katalog.sqlite'))
+    catalog.backupTo(join(target, DB_FILE))
     for (const b of catalog.listBooks({})) {
       if (b.coverFile && existsSync(join(coverDir, b.coverFile))) {
         copyFileSync(join(coverDir, b.coverFile), join(target, 'covers', b.coverFile))
@@ -183,6 +301,10 @@ function createWindow(): void {
       sandbox: true
     }
   })
+  mainWindow = win
+  win.on('closed', () => {
+    if (mainWindow === win) mainWindow = null
+  })
   win.once('ready-to-show', () => win.show())
   // Externe Links im Standardbrowser öffnen
   win.webContents.setWindowOpenHandler(({ url }) => {
@@ -196,42 +318,71 @@ function createWindow(): void {
   }
 }
 
-app.whenReady().then(() => {
-  dataDirPath = resolveDataDir()
-  coverDir = join(dataDirPath, 'covers')
-  catalog = new Catalog(join(dataDirPath, 'katalog.sqlite'))
-  const saved = catalog.getSetting('language')
-  lang = isLang(saved) ? saved : langFromLocale(app.getLocale())
-
-  protocol.handle('cover', (req) => {
-    const name = decodeURIComponent(new URL(req.url).hostname)
-    if (!/^[\w.-]+$/.test(name)) return new Response('Bad request', { status: 400 })
-    return net.fetch(pathToFileURL(join(coverDir, name)).toString())
+// Nur ein BibCraft-Fenster pro Profil: ein zweiter Start holt das vorhandene nach vorn
+if (!app.requestSingleInstanceLock()) {
+  app.quit()
+} else {
+  app.on('second-instance', () => {
+    if (!mainWindow) return
+    if (mainWindow.isMinimized()) mainWindow.restore()
+    mainWindow.focus()
   })
 
-  // Kamera nur für den Barcode-Scanner freigeben
-  session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => {
-    if (permission === 'media') {
-      if (process.platform === 'darwin') {
-        systemPreferences.askForMediaAccess('camera').then(callback)
-      } else {
-        callback(true)
+  app.whenReady().then(() => {
+    profile = new Profile(join(app.getPath('userData'), 'profile.json'))
+    const fallbackDir = defaultLibraryDir()
+
+    // Bis Version 0.3 lag die Sprache in der Datenbank – vor dem Benennen der Bibliothek übernehmen
+    if (!profile.language) {
+      let legacy: string | null = null
+      if (existsSync(join(fallbackDir, DB_FILE))) {
+        const c = new Catalog(join(fallbackDir, DB_FILE))
+        legacy = c.getSetting('language')
+        c.close()
       }
-      return
+      profile.setLanguage(isLang(legacy) ? legacy : langFromLocale(app.getLocale()))
     }
-    callback(false)
+    lang = profile.language!
+
+    const explicit = !!(process.env.BIBCRAFT_DATA_DIR || process.env.BIBCAT_DATA_DIR)
+    const target = explicit ? fallbackDir : (profile.current ?? fallbackDir)
+    try {
+      activate(target, samePath(target, fallbackDir))
+    } catch {
+      activate(fallbackDir, true)
+      libraryFallback = libraryName
+    }
+
+    protocol.handle('cover', (req) => {
+      const name = decodeURIComponent(new URL(req.url).hostname)
+      if (!/^[\w.-]+$/.test(name)) return new Response('Bad request', { status: 400 })
+      return net.fetch(pathToFileURL(join(coverDir, name)).toString())
+    })
+
+    // Kamera nur für den Barcode-Scanner freigeben
+    session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => {
+      if (permission === 'media') {
+        if (process.platform === 'darwin') {
+          systemPreferences.askForMediaAccess('camera').then(callback)
+        } else {
+          callback(true)
+        }
+        return
+      }
+      callback(false)
+    })
+
+    registerIpc()
+    createWindow()
+
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    })
   })
 
-  registerIpc()
-  createWindow()
-
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+  app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') app.quit()
   })
-})
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit()
-})
-
-app.on('before-quit', () => catalog?.close())
+  app.on('before-quit', () => catalog?.close())
+}

@@ -8,6 +8,16 @@ const call =
 
 const api: BibCraftApi = {
   app: { info: call('app:info'), setLanguage: call('app:setLanguage') },
+  libraries: {
+    list: call('libraries:list'),
+    create: call('libraries:create'),
+    pickLocation: call('libraries:pickLocation'),
+    openDialog: call('libraries:openDialog'),
+    switchTo: call('libraries:switchTo'),
+    rename: call('libraries:rename'),
+    forget: call('libraries:forget'),
+    reveal: call('libraries:reveal')
+  },
   books: {
     list: call('books:list'),
     get: call('books:get'),

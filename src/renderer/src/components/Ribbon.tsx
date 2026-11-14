@@ -11,6 +11,9 @@ import {
   DatabaseBackup,
   FileSpreadsheet,
   FolderOpen,
+  FolderPlus,
+  FolderSearch,
+  LibraryBig,
   LayoutGrid,
   List,
   MapPin,
@@ -64,6 +67,9 @@ export interface RibbonProps {
   onExport: () => void
   onBackup: () => void
   onOpenFolder: () => void
+  onNewLibrary: () => void
+  onOpenLibrary: () => void
+  onManageLibraries: () => void
 }
 
 function load<T>(key: string, fallback: T): T {
@@ -201,12 +207,17 @@ export function Ribbon(p: RibbonProps) {
         >
           {tab === 'file' && (
             <>
+              <Group label={t('group.library')}>
+                <Big icon={FolderPlus} label={t('cmd.newLibrary')} onClick={p.onNewLibrary} />
+                <Big icon={FolderOpen} label={t('cmd.openLibrary')} onClick={p.onOpenLibrary} />
+                <Big icon={LibraryBig} label={t('cmd.manageLibraries')} onClick={p.onManageLibraries} />
+              </Group>
               <Group label={t('group.export')}>
                 <Big icon={FileSpreadsheet} label={t('cmd.exportCsv')} onClick={p.onExport} />
               </Group>
               <Group label={t('group.backup')}>
                 <Big icon={DatabaseBackup} label={t('cmd.backup')} onClick={p.onBackup} />
-                <Big icon={FolderOpen} label={t('cmd.openFolder')} onClick={p.onOpenFolder} />
+                <Big icon={FolderSearch} label={t('cmd.openFolder')} onClick={p.onOpenFolder} />
               </Group>
             </>
           )}
