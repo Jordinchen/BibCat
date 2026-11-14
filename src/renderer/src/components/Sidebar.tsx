@@ -1,5 +1,15 @@
-import { useMemo, type ReactNode } from 'react'
-import { BookCheck, BookMarked, BookOpen, BookX, Folder, Heart, Library, MapPin } from 'lucide-react'
+import { useMemo, useState, type ReactNode } from 'react'
+import {
+  BarChart3,
+  BookCheck,
+  BookMarked,
+  BookOpen,
+  BookX,
+  Folder,
+  Heart,
+  Library,
+  MapPin
+} from 'lucide-react'
 import { READ_STATUSES, type Location, type ReadStatus, type Stats, type Subject } from '@shared/types'
 import { flattenLocations } from '../util'
 import { useI18n } from '../i18n'
@@ -10,6 +20,10 @@ export type Filter =
   | { kind: 'subject'; id: number }
   | { kind: 'location'; id: number }
   | { kind: 'favorites' }
+  | { kind: 'statistics' }
+
+/** MIME-Typ für gezogene Bücher (Liste von IDs als JSON) */
+export const DND_BOOKS = 'application/x-bibcraft-books'
 
 export const STATUS_ICONS: Record<ReadStatus, typeof BookOpen> = {
   unread: BookMarked,
@@ -26,6 +40,8 @@ interface Props {
   locations: Location[]
   onManageSubjects: () => void
   onManageLocations: () => void
+  /** Bücher wurden auf einen Standort, ein Fachgebiet oder einen Lesestatus gezogen */
+  onDropBooks: (target: Filter, ids: number[]) => void
 }
 
 /** Navigationsbereich links: Filter nach Lesestatus, Fachgebiet und Standort */
@@ -33,6 +49,8 @@ export function Sidebar(p: Props) {
   const { t } = useI18n()
   const locs = useMemo(() => flattenLocations(p.locations), [p.locations])
   const is = (f: Filter) => JSON.stringify(f) === JSON.stringify(p.filter)
+  const [dropKey, setDropKey] = useState('')
+  const accepts = (f: Filter) => f.kind === 'subject' || f.kind === 'location' || f.kind === 'status'
 
   const Item = ({
     f,
@@ -48,10 +66,24 @@ export function Sidebar(p: Props) {
     depth?: number
   }) => (
     <button
-      className={`nav-item ${is(f) ? 'active' : ''}`}
+      className={`nav-item ${is(f) ? 'active' : ''} ${dropKey === JSON.stringify(f) ? 'drop' : ''}`}
       style={{ paddingLeft: 10 + depth * 16 }}
       onClick={() => p.onFilter(f)}
       title={label}
+      onDragOver={(e) => {
+        if (!accepts(f) || !e.dataTransfer.types.includes(DND_BOOKS)) return
+        e.preventDefault()
+        e.dataTransfer.dropEffect = 'move'
+        setDropKey(JSON.stringify(f))
+      }}
+      onDragLeave={() => setDropKey('')}
+      onDrop={(e) => {
+        setDropKey('')
+        const raw = e.dataTransfer.getData(DND_BOOKS)
+        if (!raw || !accepts(f)) return
+        e.preventDefault()
+        p.onDropBooks(f, JSON.parse(raw) as number[])
+      }}
     >
       <span className="nav-icon">{icon}</span>
       <span className="nav-label">{label}</span>
@@ -70,6 +102,7 @@ export function Sidebar(p: Props) {
             count={p.stats?.total}
           />
           <Item f={{ kind: 'favorites' }} icon={<Heart size={16} />} label={t('nav.favorites')} />
+          <Item f={{ kind: 'statistics' }} icon={<BarChart3 size={16} />} label={t('nav.statistics')} />
         </div>
 
         <div className="nav-group">

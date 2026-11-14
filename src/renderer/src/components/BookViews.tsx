@@ -7,22 +7,27 @@ import { primaryAuthor } from '../util'
 
 interface Props {
   books: Book[]
-  selectedId: number | null
-  onSelect: (b: Book) => void
+  selected: Set<number>
+  /** Klick auf ein Buch; Strg/Umschalt werden vom Aufrufer ausgewertet */
+  onSelect: (b: Book, e: React.MouseEvent) => void
   onOpen: (b: Book) => void
+  onDragStart: (b: Book, e: React.DragEvent) => void
   subjects: Map<number, Subject>
 }
 
-export function BookGrid({ books, selectedId, onSelect, onOpen }: Props) {
+export function BookGrid({ books, selected, onSelect, onOpen, onDragStart }: Props) {
   const { t } = useI18n()
   return (
     <div className="book-grid">
       {books.map((b) => (
         <button
           key={b.id}
-          className={`grid-card ${b.id === selectedId ? 'selected' : ''}`}
-          onClick={() => onSelect(b)}
+          className={`grid-card ${selected.has(b.id) ? 'selected' : ''}`}
+          onClick={(e) => onSelect(b, e)}
           onDoubleClick={() => onOpen(b)}
+          draggable
+          onDragStart={(e) => onDragStart(b, e)}
+          aria-pressed={selected.has(b.id)}
         >
           <div className="grid-cover">
             <Cover book={b} />
@@ -46,7 +51,7 @@ export function BookGrid({ books, selectedId, onSelect, onOpen }: Props) {
   )
 }
 
-export function BookTable({ books, selectedId, onSelect, onOpen, subjects }: Props) {
+export function BookTable({ books, selected, onSelect, onOpen, onDragStart, subjects }: Props) {
   const { t } = useI18n()
   return (
     <div className="table-wrap">
@@ -69,9 +74,11 @@ export function BookTable({ books, selectedId, onSelect, onOpen, subjects }: Pro
             return (
               <tr
                 key={b.id}
-                className={b.id === selectedId ? 'selected' : ''}
-                onClick={() => onSelect(b)}
+                className={selected.has(b.id) ? 'selected' : ''}
+                onClick={(e) => onSelect(b, e)}
                 onDoubleClick={() => onOpen(b)}
+                draggable
+                onDragStart={(e) => onDragStart(b, e)}
               >
                 <td>
                   <Cover book={b} className="cover-xs" />

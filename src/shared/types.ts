@@ -105,6 +105,49 @@ export interface Stats {
   byStatus: Record<ReadStatus, number>
 }
 
+/** Sammeländerung für mehrere Bücher; nicht gesetzte Felder bleiben unverändert */
+export interface BulkPatch {
+  locationId?: number | null
+  subjectId?: number | null
+  readStatus?: ReadStatus
+  rating?: number
+  addKeywords?: string[]
+  removeKeywords?: string[]
+  /** Exemplare erhöhen/verringern (nie unter 0) */
+  copiesDelta?: number
+}
+
+export interface CountRow {
+  /** Schlüssel: Fachgebiets-/Standort-ID, Jahr, Monat, Sprache, Autor … (null = ohne Angabe) */
+  key: string | number | null
+  label: string
+  count: number
+  color?: string
+}
+
+export interface Statistics {
+  total: number
+  copies: number
+  pagesRead: number
+  avgRating: number | null
+  ratedCount: number
+  addedThisYear: number
+  readThisYear: number
+  byStatus: Record<ReadStatus, number>
+  bySubject: CountRow[]
+  byLocation: CountRow[]
+  /** Gelesen pro Jahr (nach Lesedatum), lückenlos */
+  readByYear: CountRow[]
+  /** Erfasst pro Monat, letzte 12 Monate, lückenlos */
+  addedByMonth: CountRow[]
+  /** Erscheinungsjahr nach Jahrzehnt */
+  byDecade: CountRow[]
+  topAuthors: CountRow[]
+  byLanguage: CountRow[]
+  /** Anzahl Bücher mit 1–5 Sternen (Index 0 = 1 Stern) */
+  ratings: number[]
+}
+
 /** Ergebnis einer ISBN-Abfrage, bereits auf unsere Felder abgebildet */
 export interface IsbnResult {
   source: string
@@ -134,6 +177,11 @@ export interface BibCraftApi {
     remove(id: number): Promise<void>
     findByIsbn(isbn: string): Promise<Book | null>
     stats(): Promise<Stats>
+    statistics(): Promise<Statistics>
+    bulkUpdate(ids: number[], patch: BulkPatch): Promise<number>
+    removeMany(ids: number[]): Promise<void>
+    /** Stellt Bücher exakt im übergebenen Zustand wieder her (Rückgängig) */
+    restore(books: Book[]): Promise<void>
   }
   subjects: {
     list(): Promise<Subject[]>

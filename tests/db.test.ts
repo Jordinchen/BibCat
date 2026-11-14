@@ -33,7 +33,9 @@ describe('Catalog', () => {
   })
 
   it('findet mit Präfixen, mehreren Wörtern und ohne Umlaute', () => {
-    c.createBook(book({ title: 'Über die Freiheit', authors: 'Mill, John Stuart', keywords: 'Liberalismus, Ethik' }))
+    c.createBook(
+      book({ title: 'Über die Freiheit', authors: 'Mill, John Stuart', keywords: 'Liberalismus, Ethik' })
+    )
     c.createBook(book({ title: 'Der Prozess', authors: 'Kafka, Franz', callNumber: 'LIT 830 KAF' }))
     expect(c.listBooks({ text: 'uber' })).toHaveLength(1)
     expect(c.listBooks({ text: 'mill frei' })).toHaveLength(1)
@@ -88,7 +90,11 @@ describe('Catalog', () => {
     expect(c.listBooks({ readStatus: 'reading' })[0].title).toBe('B')
     expect(c.listBooks({ minRating: 4 })[0].title).toBe('A')
     expect(c.listBooks({ sort: 'rating', desc: true }).map((b) => b.title)).toEqual(['A', 'B'])
-    expect(c.stats()).toEqual({ total: 2, copies: 3, byStatus: { unread: 0, reading: 1, read: 1, abandoned: 0 } })
+    expect(c.stats()).toEqual({
+      total: 2,
+      copies: 3,
+      byStatus: { unread: 0, reading: 1, read: 1, abandoned: 0 }
+    })
     c.deleteSubject(s.id)
     expect(c.listBooks({ text: 'A' })[0].subjectId).toBeNull()
   })

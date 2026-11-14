@@ -92,6 +92,10 @@ function registerIpc(): void {
   handle('books:remove', (_e, id: number) => catalog.deleteBook(id))
   handle('books:findByIsbn', (_e, isbn: string) => catalog.findByIsbn(isbn))
   handle('books:stats', () => catalog.stats())
+  handle('books:statistics', () => catalog.statistics())
+  handle('books:bulkUpdate', (_e, ids: number[], patch) => catalog.bulkUpdate(ids, patch))
+  handle('books:removeMany', (_e, ids: number[]) => catalog.deleteBooks(ids))
+  handle('books:restore', (_e, books) => catalog.restoreBooks(books))
 
   handle('subjects:list', () => catalog.listSubjects())
   handle('subjects:save', (_e, s) => catalog.saveSubject(s))

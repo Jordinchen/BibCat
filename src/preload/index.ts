@@ -15,7 +15,11 @@ const api: BibCraftApi = {
     update: call('books:update'),
     remove: call('books:remove'),
     findByIsbn: call('books:findByIsbn'),
-    stats: call('books:stats')
+    stats: call('books:stats'),
+    statistics: call('books:statistics'),
+    bulkUpdate: call('books:bulkUpdate'),
+    removeMany: call('books:removeMany'),
+    restore: call('books:restore')
   },
   subjects: {
     list: call('subjects:list'),

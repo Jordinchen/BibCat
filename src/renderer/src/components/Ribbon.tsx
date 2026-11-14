@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   ArrowDownZA,
+  BarChart3,
+  CheckSquare,
+  SquareDashed,
   ArrowUpAZ,
   BookPlus,
   ChevronUp,
@@ -31,7 +34,12 @@ const TABS: RibbonTab[] = ['file', 'home', 'catalog', 'view']
 const SORTS: SortField[] = ['title', 'authors', 'year', 'createdAt', 'rating', 'callNumber']
 
 export interface RibbonProps {
-  selected: Book | null
+  /** Ausgewählte Bücher (leer, eines oder mehrere) */
+  selection: Book[]
+  onSelectAll: () => void
+  onSelectNone: () => void
+  statsActive: boolean
+  onStats: () => void
   onQuick: () => void
   onNew: () => void
   onEdit: () => void
@@ -154,7 +162,10 @@ export function Ribbon(p: RibbonProps) {
     }
   }, [peek])
 
-  const sel = p.selected
+  const sel = p.selection.length > 0
+  // Gemeinsamer Wert der Auswahl, sonst undefined
+  const common = <K extends keyof Book>(k: K): Book[K] | undefined =>
+    p.selection.length && p.selection.every((b) => b[k] === p.selection[0][k]) ? p.selection[0][k] : undefined
   const showPanel = !collapsed || peek
 
   return (
@@ -219,6 +230,17 @@ export function Ribbon(p: RibbonProps) {
                   <Small icon={Trash2} label={t('cmd.deleteBook')} onClick={p.onDelete} disabled={!sel} />
                 </Stack>
               </Group>
+              <Group label={t('group.selection')}>
+                <Stack>
+                  <Small icon={CheckSquare} label={t('cmd.selectAll')} onClick={p.onSelectAll} />
+                  <Small
+                    icon={SquareDashed}
+                    label={t('cmd.selectNone')}
+                    onClick={p.onSelectNone}
+                    disabled={!sel}
+                  />
+                </Stack>
+              </Group>
               <Group label={t('group.readStatus')}>
                 <div className="rb-grid2">
                   {READ_STATUSES.map((s) => (
@@ -228,14 +250,14 @@ export function Ribbon(p: RibbonProps) {
                       label={t(`status.${s}`)}
                       onClick={() => p.onStatus(s)}
                       disabled={!sel}
-                      active={sel?.readStatus === s}
+                      active={common('readStatus') === s}
                     />
                   ))}
                 </div>
               </Group>
               <Group label={t('group.rating')}>
                 <div className={`rb-rating ${sel ? '' : 'disabled'}`}>
-                  <Stars value={sel?.rating ?? 0} onChange={sel ? p.onRating : undefined} />
+                  <Stars value={common('rating') ?? 0} onChange={sel ? p.onRating : undefined} />
                 </div>
               </Group>
             </>
@@ -291,6 +313,14 @@ export function Ribbon(p: RibbonProps) {
                   label={t('cmd.table')}
                   onClick={() => p.onView('table')}
                   active={p.view === 'table'}
+                />
+              </Group>
+              <Group label={t('group.analysis')}>
+                <Big
+                  icon={BarChart3}
+                  label={t('cmd.statistics')}
+                  onClick={p.onStats}
+                  active={p.statsActive}
                 />
               </Group>
               <Group label={t('group.panes')}>

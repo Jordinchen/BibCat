@@ -45,7 +45,12 @@ describe('Open Library / Google Books', () => {
       },
       '9780306406157'
     )!
-    expect(r.data).toMatchObject({ title: 'Example', authors: 'Jane Doe; John Roe', year: '1985', pages: 210 })
+    expect(r.data).toMatchObject({
+      title: 'Example',
+      authors: 'Jane Doe; John Roe',
+      year: '1985',
+      pages: 210
+    })
     expect(r.coverUrl).toContain('covers.openlibrary.org')
   })
 

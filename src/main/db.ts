@@ -1,5 +1,16 @@
 import { DatabaseSync } from 'node:sqlite'
-import type { Book, BookInput, BookQuery, Location, ReadStatus, Stats, Subject } from '@shared/types'
+import type {
+  Book,
+  BookInput,
+  BookQuery,
+  BulkPatch,
+  CountRow,
+  Location,
+  ReadStatus,
+  Statistics,
+  Stats,
+  Subject
+} from '@shared/types'
 import { cleanIsbn, toIsbn13 } from '@shared/isbn'
 import { AppError } from '@shared/i18n'
 
@@ -301,6 +312,217 @@ export class Catalog {
 
   deleteBook(id: number): void {
     this.db.prepare('DELETE FROM books WHERE id = ?').run(id)
+  }
+
+  /** Führt eine Funktion in einer Transaktion aus (alles oder nichts). */
+  private tx<T>(fn: () => T): T {
+    this.db.exec('BEGIN')
+    try {
+      const r = fn()
+      this.db.exec('COMMIT')
+      return r
+    } catch (e) {
+      this.db.exec('ROLLBACK')
+      throw e
+    }
+  }
+
+  private toInput(b: Book): BookInput {
+    const { id: _id, createdAt: _c, updatedAt: _u, ...rest } = b
+    return rest
+  }
+
+  /** Wendet eine Sammeländerung auf mehrere Bücher an. Gibt die Anzahl geänderter Bücher zurück. */
+  bulkUpdate(ids: number[], patch: BulkPatch): number {
+    const today = new Date().toISOString().slice(0, 10)
+    const add = (patch.addKeywords ?? []).map((k) => k.trim()).filter(Boolean)
+    const remove = new Set((patch.removeKeywords ?? []).map((k) => k.trim().toLowerCase()).filter(Boolean))
+    return this.tx(() => {
+      let n = 0
+      for (const id of ids) {
+        const b = this.getBook(id)
+        if (!b) continue
+        const next = this.toInput(b)
+        if (patch.locationId !== undefined) next.locationId = patch.locationId
+        if (patch.subjectId !== undefined) next.subjectId = patch.subjectId
+        if (patch.rating !== undefined) next.rating = patch.rating
+        if (patch.readStatus !== undefined) {
+          next.readStatus = patch.readStatus
+          if (patch.readStatus === 'read' && !next.readDate) next.readDate = today
+        }
+        if (patch.copiesDelta) next.copies = Math.max(0, next.copies + patch.copiesDelta)
+        if (add.length || remove.size) {
+          const kws = next.keywords
+            .split(',')
+            .map((k) => k.trim())
+            .filter(Boolean)
+            .filter((k) => !remove.has(k.toLowerCase()))
+          for (const k of add) if (!kws.some((x) => x.toLowerCase() === k.toLowerCase())) kws.push(k)
+          next.keywords = kws.join(', ')
+        }
+        this.updateBook(id, next)
+        n++
+      }
+      return n
+    })
+  }
+
+  deleteBooks(ids: number[]): void {
+    this.tx(() => {
+      const st = this.db.prepare('DELETE FROM books WHERE id = ?')
+      for (const id of ids) st.run(id)
+    })
+  }
+
+  /** Stellt Bücher mit ID, Erfassungs- und Änderungsdatum exakt wieder her (für „Rückgängig"). */
+  restoreBooks(books: Book[]): void {
+    this.tx(() => {
+      for (const b of books) {
+        const p = {
+          ...this.params(this.toInput(b)),
+          id: b.id,
+          created_at: b.createdAt,
+          updated_at: b.updatedAt
+        }
+        // Kein INSERT OR REPLACE: das würde die Löschtrigger des Volltextindex umgehen
+        const exists = this.db.prepare('SELECT 1 FROM books WHERE id = ?').get(b.id)
+        const cols = Object.keys(p)
+        if (exists) {
+          this.db
+            .prepare(
+              `UPDATE books SET ${cols
+                .filter((c) => c !== 'id')
+                .map((c) => `${c} = $${c}`)
+                .join(', ')} WHERE id = $id`
+            )
+            .run(p)
+        } else {
+          this.db
+            .prepare(`INSERT INTO books (${cols.join(',')}) VALUES (${cols.map((c) => '$' + c).join(',')})`)
+            .run(p)
+        }
+      }
+    })
+  }
+
+  statistics(now = new Date()): Statistics {
+    const all = (sql: string, ...args: (string | number)[]) => this.db.prepare(sql).all(...args) as Row[]
+    const one = (sql: string) => this.db.prepare(sql).get() as Row
+    const year = String(now.getFullYear())
+
+    const base = one(`SELECT COUNT(*) AS n, COALESCE(SUM(copies),0) AS c,
+        COALESCE(SUM(CASE WHEN read_status = 'read' THEN pages END),0) AS pages,
+        AVG(CASE WHEN rating > 0 THEN rating END) AS avg,
+        SUM(CASE WHEN rating > 0 THEN 1 ELSE 0 END) AS rated,
+        SUM(CASE WHEN substr(created_at,1,4) = '${year}' THEN 1 ELSE 0 END) AS addedYear,
+        SUM(CASE WHEN read_status = 'read' AND substr(read_date,1,4) = '${year}' THEN 1 ELSE 0 END) AS readYear
+      FROM books`)
+
+    const bySubject: CountRow[] = all(
+      `SELECT s.id AS key, s.name AS label, s.color AS color, COUNT(b.id) AS count
+       FROM books b LEFT JOIN subjects s ON s.id = b.subject_id
+       GROUP BY s.id ORDER BY count DESC, label COLLATE NOCASE`
+    ).map((r) => ({
+      key: r.key as number | null,
+      label: (r.label as string) ?? '',
+      count: r.count as number,
+      color: (r.color as string) ?? undefined
+    }))
+
+    // Standorte auf die oberste Ebene (Räume) zusammenfassen
+    const byLocation: CountRow[] = all(
+      `WITH RECURSIVE anc(id, root) AS (
+         SELECT id, id FROM locations WHERE parent_id IS NULL
+         UNION ALL SELECT l.id, anc.root FROM locations l JOIN anc ON l.parent_id = anc.id
+       )
+       SELECT r.id AS key, r.name AS label, COUNT(b.id) AS count
+       FROM books b LEFT JOIN anc ON anc.id = b.location_id LEFT JOIN locations r ON r.id = anc.root
+       GROUP BY r.id ORDER BY count DESC, label COLLATE NOCASE`
+    ).map((r) => ({
+      key: r.key as number | null,
+      label: (r.label as string) ?? '',
+      count: r.count as number
+    }))
+
+    const readYears = all(
+      `SELECT substr(read_date,1,4) AS y, COUNT(*) AS n FROM books
+       WHERE read_status = 'read' AND read_date GLOB '[0-9][0-9][0-9][0-9]*' GROUP BY y ORDER BY y`
+    )
+    const readByYear: CountRow[] = []
+    if (readYears.length) {
+      const map = new Map(readYears.map((r) => [Number(r.y), r.n as number]))
+      const first = Number(readYears[0].y)
+      const last = Math.max(Number(readYears[readYears.length - 1].y), now.getFullYear())
+      for (let y = Math.max(first, last - 14); y <= last; y++) {
+        readByYear.push({ key: y, label: String(y), count: map.get(y) ?? 0 })
+      }
+    }
+
+    const months = new Map(
+      all(`SELECT substr(created_at,1,7) AS m, COUNT(*) AS n FROM books GROUP BY m`).map((r) => [
+        r.m as string,
+        r.n as number
+      ])
+    )
+    const addedByMonth: CountRow[] = []
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(Date.UTC(now.getFullYear(), now.getMonth() - i, 1))
+      const m = d.toISOString().slice(0, 7)
+      addedByMonth.push({ key: m, label: m, count: months.get(m) ?? 0 })
+    }
+
+    const decades = new Map<number, number>()
+    const authors = new Map<string, number>()
+    const languages = new Map<string, number>()
+    for (const r of all('SELECT year, authors, language FROM books')) {
+      const y = /\d{4}/.exec(r.year as string)
+      if (y) {
+        const d = Math.floor(Number(y[0]) / 10) * 10
+        decades.set(d, (decades.get(d) ?? 0) + 1)
+      }
+      for (const a of new Set(
+        (r.authors as string)
+          .split(';')
+          .map((x) => x.trim())
+          .filter(Boolean)
+      )) {
+        authors.set(a, (authors.get(a) ?? 0) + 1)
+      }
+      const lang = (r.language as string).trim().toLowerCase()
+      if (lang) languages.set(lang, (languages.get(lang) ?? 0) + 1)
+    }
+    const byDecade: CountRow[] = [...decades.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .map(([d, n]) => ({ key: d, label: `${d}`, count: n }))
+    const top = (m: Map<string, number>, k: number): CountRow[] =>
+      [...m.entries()]
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+        .slice(0, k)
+        .map(([label, count]) => ({ key: label, label, count }))
+
+    const ratings = [0, 0, 0, 0, 0]
+    for (const r of all('SELECT rating, COUNT(*) AS n FROM books WHERE rating > 0 GROUP BY rating')) {
+      ratings[(r.rating as number) - 1] = r.n as number
+    }
+
+    return {
+      total: base.n as number,
+      copies: base.c as number,
+      pagesRead: base.pages as number,
+      avgRating: (base.avg as number | null) ?? null,
+      ratedCount: (base.rated as number) ?? 0,
+      addedThisYear: (base.addedYear as number) ?? 0,
+      readThisYear: (base.readYear as number) ?? 0,
+      byStatus: this.stats().byStatus,
+      bySubject,
+      byLocation,
+      readByYear,
+      addedByMonth,
+      byDecade,
+      topAuthors: top(authors, 10),
+      byLanguage: top(languages, 8),
+      ratings
+    }
   }
 
   stats(): Stats {

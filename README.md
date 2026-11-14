@@ -26,12 +26,22 @@ mit Systematik-Notation, Schlagworte, Exemplare und verschachtelte Standorte.
 - **Sprachen**: Deutsch und Englisch, umschaltbar unter *Ansicht › Sprache*. Beim ersten Start
   richtet sich die Sprache nach dem Betriebssystem.
 - Raster- und Listenansicht, ein- und ausblendbare Bereiche, Hell-/Dunkelmodus nach System.
+- **Massenbearbeitung**: mehrere Bücher markieren (Strg+Klick, Umschalt+Klick, Strg+A) und
+  gemeinsam Standort, Fachgebiet, Lesestatus, Bewertung oder Schlagworte ändern – oder die Auswahl
+  einfach auf einen Standort, ein Fachgebiet oder einen Lesestatus im Navigationsbereich ziehen.
+  Jede Sammeländerung und jedes Löschen lässt sich rückgängig machen.
+- **Statistik**: Kennzahlen und Diagramme zu Lesestatus, Fachgebieten, Standorten, Neuzugängen,
+  gelesenen Büchern pro Jahr, Erscheinungsjahrzehnten, Autoren, Sprachen und Bewertungen; jedes
+  Diagramm auch als Tabelle. Ein Klick auf einen Balken zeigt die zugehörigen Bücher.
 - **CSV-Export** (Excel-kompatibel, Spalten in der gewählten Sprache) und **Sicherung**.
 
-Tastenkürzel: `Strg/⌘ + N` neues Buch, `Strg/⌘ + F` Suche, `Strg/⌘ + F1` Menüband, `Esc` schließt Dialoge.
+Tastenkürzel: `Strg/⌘ + N` neues Buch, `Strg/⌘ + F` Suche, `Strg/⌘ + A` alle auswählen,
+`Entf` Auswahl löschen, `Strg/⌘ + F1` Menüband, `Esc` Auswahl aufheben bzw. Dialog schließen.
 
-| Englisch | Dunkelmodus, Menüband eingeklappt |
+| Massenbearbeitung | Statistik |
 |---|---|
+| ![Massenbearbeitung](docs/massenbearbeitung.png) | ![Statistik](docs/statistik.png) |
+| **Englisch** | **Dunkelmodus, Menüband eingeklappt** |
 | ![Englische Oberfläche](docs/english.png) | ![Dunkelmodus](docs/dunkel.png) |
 
 ## Daten
