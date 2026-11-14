@@ -8,6 +8,7 @@ directories:
 files:
   - out/**/*
   - package.json
+  - LICENSE
 asar: true
 win:
   target:
@@ -18,6 +19,8 @@ nsis:
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   shortcutName: BibCraft
+  # Lizenz (GPL-3.0) im Installer anzeigen
+  license: LICENSE
 mac:
   category: public.app-category.reference
   target:

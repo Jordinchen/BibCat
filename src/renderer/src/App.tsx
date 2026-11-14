@@ -11,6 +11,7 @@ import { BookEditor } from './components/BookEditor'
 import { QuickCapture } from './components/QuickCapture'
 import { StatisticsView } from './components/StatisticsView'
 import { LocationManager, SubjectManager } from './components/Managers'
+import { AboutDialog } from './components/About'
 import { LibraryManager, LibrarySwitcher, NewLibraryDialog, openLibraryDialog } from './components/Libraries'
 import { errMsg, flattenLocations } from './util'
 import { I18nProvider, useI18n } from './i18n'
@@ -24,6 +25,7 @@ type Dialog =
   | { kind: 'locations' }
   | { kind: 'newLibrary' }
   | { kind: 'libraries' }
+  | { kind: 'about' }
 
 interface Toast {
   text: string
@@ -406,6 +408,7 @@ function Shell({ info, onLang }: { info: AppInfo; onLang: (l: Lang) => void }) {
         onNewLibrary={() => setDialog({ kind: 'newLibrary' })}
         onOpenLibrary={openLibrary}
         onManageLibraries={() => setDialog({ kind: 'libraries' })}
+        onAbout={() => setDialog({ kind: 'about' })}
       />
 
       <div className={`workspace ${navPane ? 'with-nav' : ''} ${showSide ? 'with-detail' : ''}`}>
@@ -578,6 +581,9 @@ function Shell({ info, onLang }: { info: AppInfo; onLang: (l: Lang) => void }) {
       )}
       {dialog.kind === 'subjects' && (
         <SubjectManager subjects={subjects} onClose={() => setDialog({ kind: 'none' })} onChanged={refresh} />
+      )}
+      {dialog.kind === 'about' && (
+        <AboutDialog version={info.version} onClose={() => setDialog({ kind: 'none' })} />
       )}
       {dialog.kind === 'newLibrary' && <NewLibraryDialog onClose={() => setDialog({ kind: 'none' })} />}
       {dialog.kind === 'libraries' && (

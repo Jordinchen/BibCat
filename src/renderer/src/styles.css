@@ -2037,3 +2037,96 @@ html:not([data-platform='darwin']) .titlebar-end {
   gap: 4px;
   flex-shrink: 0;
 }
+
+/* ---------- Über BibCraft ---------- */
+
+.about-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+.about-mark {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  font-size: 26px;
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.about-name {
+  font-family: var(--serif);
+  font-size: 22px;
+}
+.about-copy {
+  font-weight: 600;
+}
+.about-warranty {
+  font-size: 12.5px;
+  color: var(--text-2);
+}
+.about-links {
+  flex-wrap: wrap;
+  margin: 14px 0 6px;
+}
+.about-links a {
+  color: inherit;
+  text-decoration: none;
+}
+.about-note {
+  font-size: 12px;
+  margin: 10px 0 4px;
+}
+.license-text {
+  max-height: 260px;
+  overflow: auto;
+  margin: 6px 0 0;
+  padding: 10px 12px;
+  background: var(--surface-2);
+  border-radius: 8px;
+  font: 11.5px/1.5 var(--mono);
+  white-space: pre-wrap;
+  user-select: text;
+}
+.about-section {
+  margin-top: 22px;
+  font-size: 14px;
+}
+.third-party {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.third-party li {
+  border-bottom: 1px solid var(--border);
+}
+.third-party li:last-child {
+  border-bottom: none;
+}
+.third-party summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.third-party details[open] summary {
+  border-bottom: 1px solid var(--border);
+}
+.third-party details .license-text {
+  margin: 8px 12px 12px;
+}
+.tp-name {
+  font-weight: 600;
+}
+.tp-license {
+  margin-left: auto;
+  font-size: 11.5px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}

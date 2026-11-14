@@ -113,3 +113,29 @@ src/renderer/    React-Oberfläche (Menüband: components/Ribbon.tsx)
 src/shared/      Gemeinsame Typen, Übersetzungen, ISBN-Hilfsfunktionen
 tests/           Vitest-Tests
 ```
+
+## Lizenz
+
+BibCraft ist freie Software unter der **GNU General Public License, Version 3 oder (nach deiner
+Wahl) jeder späteren Version** (`GPL-3.0-or-later`). Den vollständigen Text enthält die Datei
+[`LICENSE`](LICENSE); im Programm steht er unter *Datei › Über BibCraft*.
+
+    BibCraft – Katalogisierung privater Bibliotheken
+    Copyright (C) 2026 Die BibCraft-Mitwirkenden
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+BibCraft verwendet freie Bibliotheken unter MIT-, Apache-2.0- und ISC-Lizenz. Ihre Lizenztexte
+werden beim Build von `scripts/third-party-licenses.mjs` gesammelt und unter *Über BibCraft*
+angezeigt.

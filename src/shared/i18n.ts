@@ -171,6 +171,24 @@ const de = {
   'err.forgetCurrent': 'Die geöffnete Bibliothek kann nicht aus der Liste entfernt werden.',
   'msg.libraryFallback':
     'Die zuletzt geöffnete Bibliothek wurde nicht gefunden. Geöffnet ist jetzt „{name}".',
+  'group.info': 'Info',
+  'cmd.about': 'Über\nBibCraft',
+  'about.title': 'Über BibCraft',
+  'about.version': 'Version {v}',
+  'about.tagline': 'Katalogisierung privater Bibliotheken',
+  'about.copyright': 'Copyright © 2026 Die BibCraft-Mitwirkenden',
+  'about.free':
+    'BibCraft ist freie Software: Du kannst es unter den Bedingungen der GNU General Public License, wie von der Free Software Foundation veröffentlicht, weitergeben und/oder verändern, entweder gemäß Version 3 der Lizenz oder (nach deiner Wahl) jeder späteren Version.',
+  'about.warranty':
+    'BibCraft wird in der Hoffnung verbreitet, dass es nützlich ist, aber OHNE JEDE GEWÄHRLEISTUNG – sogar ohne die implizite Gewährleistung der MARKTFÄHIGKEIT oder der EIGNUNG FÜR EINEN BESTIMMTEN ZWECK. Einzelheiten findest du in der GNU General Public License.',
+  'about.source': 'Quellcode auf GitHub',
+  'about.gnu': 'Über die GNU GPL',
+  'about.showLicense': 'Lizenztext anzeigen',
+  'about.hideLicense': 'Lizenztext ausblenden',
+  'about.licenseNote': 'Rechtlich verbindlich ist der englische Originaltext.',
+  'about.thirdParty': 'Verwendete freie Software',
+  'about.thirdPartyIntro':
+    'BibCraft baut auf diesen Bibliotheken auf. Für sie gelten ihre jeweiligen Lizenzen:',
   'heading.subject': 'Fachgebiet',
   'heading.location': 'Standort',
 
@@ -516,6 +534,23 @@ const en: Record<TKey, string> = {
   'err.libraryName': 'Please enter a name.',
   'err.forgetCurrent': 'The library that is open cannot be removed from the list.',
   'msg.libraryFallback': 'The last library could not be found. "{name}" is open now.',
+  'group.info': 'Info',
+  'cmd.about': 'About\nBibCraft',
+  'about.title': 'About BibCraft',
+  'about.version': 'Version {v}',
+  'about.tagline': 'Cataloguing for private libraries',
+  'about.copyright': 'Copyright © 2026 The BibCraft contributors',
+  'about.free':
+    'BibCraft is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.',
+  'about.warranty':
+    'BibCraft is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.',
+  'about.source': 'Source code on GitHub',
+  'about.gnu': 'About the GNU GPL',
+  'about.showLicense': 'Show license text',
+  'about.hideLicense': 'Hide license text',
+  'about.licenseNote': 'The English original is the legally binding text.',
+  'about.thirdParty': 'Free software used',
+  'about.thirdPartyIntro': 'BibCraft is built on these libraries. Their respective licenses apply to them:',
   'heading.subject': 'Subject',
   'heading.location': 'Location',
 
