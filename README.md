@@ -103,9 +103,12 @@ Signierung automatisch, bis dahin weist BibCraft auf neue Versionen hin.
 ## Neue Version veröffentlichen
 
 1. Version in `package.json` erhöhen und einen Abschnitt in `CHANGELOG.md` ergänzen.
-2. Commit pushen und eine Versionsmarke setzen, z. B. `git tag v0.5.1 && git push origin v0.5.1`.
-3. Der Workflow `.github/workflows/build.yml` baut Windows und macOS und veröffentlicht ein
-   Release mit den Installern, den Update-Beschreibungen (`latest*.yml`) und der Änderungsliste.
+2. Commit pushen.
+3. Auf GitHub unter *Actions › Build › Run workflow* den Zweig wählen, „Release veröffentlichen"
+   anhaken und starten (alternativ eine Versionsmarke wie `v0.5.1` pushen).
+4. Der Workflow baut Windows und macOS und veröffentlicht ein Release mit den Installern, den
+   Update-Beschreibungen (`latest*.yml`) und der Änderungsliste. Eine bereits veröffentlichte
+   Version wird nicht überschrieben.
 
 Lokal bauen (auf dem jeweiligen Betriebssystem):
 

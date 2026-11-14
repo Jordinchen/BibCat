@@ -1,13 +1,20 @@
 name: Build
 
-# Jeder Push baut und testet. Eine Versionsmarke (z. B. v0.5.0) veröffentlicht zusätzlich
-# ein GitHub-Release, von dem die installierten BibCraft-Versionen ihre Updates holen.
+# Jeder Push baut und testet. Ein Release (von dem installierte BibCraft-Versionen ihre
+# Updates holen) entsteht auf zwei Wegen:
+#  - Actions › Build › Run workflow mit „Release veröffentlichen" (setzt die Marke selbst), oder
+#  - durch Pushen einer Versionsmarke wie v0.5.0.
 on:
   push:
     branches: ['**']
     tags: ['v*']
   pull_request:
   workflow_dispatch:
+    inputs:
+      release:
+        description: Release mit der Version aus package.json veröffentlichen
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -61,19 +68,24 @@ jobs:
 
   release:
     needs: package
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release)
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - name: Versionsmarke und package.json vergleichen
+      - name: Version bestimmen und prüfen
         run: |
           version=$(node -p "require('./package.json').version")
-          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+          if [ "$GITHUB_REF_TYPE" = "tag" ] && [ "v$version" != "$GITHUB_REF_NAME" ]; then
             echo "::error::Marke $GITHUB_REF_NAME passt nicht zu package.json ($version)"
             exit 1
           fi
+          if [ "$GITHUB_REF_TYPE" != "tag" ] && git ls-remote --exit-code --tags origin "refs/tags/v$version" >/dev/null; then
+            echo "::error::Version $version ist bereits veröffentlicht – bitte package.json erhöhen"
+            exit 1
+          fi
+          echo "TAG=v$version" >> "$GITHUB_ENV"
           node scripts/changelog-section.mjs "$version" > release-notes.md
       - uses: actions/download-artifact@v4
         with:
@@ -81,7 +93,9 @@ jobs:
           merge-multiple: true
       - uses: softprops/action-gh-release@v2
         with:
-          name: BibCraft ${{ github.ref_name }}
+          tag_name: ${{ env.TAG }}
+          target_commitish: ${{ github.sha }}
+          name: BibCraft ${{ env.TAG }}
           body_path: release-notes.md
           files: artifacts/*
           fail_on_unmatched_files: true
