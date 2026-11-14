@@ -20,6 +20,7 @@ export function locationPath(id: number | null, locations: Location[]): string {
 }
 
 const COLUMNS: TKey[] = [
+  'csv.mediaType',
   'csv.callNumber',
   'csv.title',
   'csv.subtitle',
@@ -32,7 +33,10 @@ const COLUMNS: TKey[] = [
   'csv.isbn',
   'csv.language',
   'csv.pages',
+  'csv.duration',
   'csv.binding',
+  'csv.ageRating',
+  'csv.players',
   'csv.series',
   'csv.seriesNumber',
   'csv.subject',
@@ -45,7 +49,8 @@ const COLUMNS: TKey[] = [
   'csv.readDate',
   'csv.acquired',
   'csv.description',
-  'csv.notes'
+  'csv.notes',
+  'csv.tracks'
 ]
 
 /** CSV mit Semikolon und BOM, damit Excel die Datei direkt öffnet; Spaltennamen in der App-Sprache. */
@@ -55,6 +60,7 @@ export function booksToCsv(books: Book[], subjects: Subject[], locations: Locati
   const rows = books.map((b) => {
     const s = b.subjectId != null ? subj.get(b.subjectId) : undefined
     return [
+      t(`media.${b.mediaType}`),
       b.callNumber,
       b.title,
       b.subtitle,
@@ -67,7 +73,10 @@ export function booksToCsv(books: Book[], subjects: Subject[], locations: Locati
       b.isbn,
       b.language,
       b.pages,
+      b.duration,
       b.binding,
+      b.ageRating,
+      b.players,
       b.series,
       b.seriesNumber,
       s?.name,
@@ -80,7 +89,8 @@ export function booksToCsv(books: Book[], subjects: Subject[], locations: Locati
       b.readDate,
       b.acquiredDate,
       b.description,
-      b.notes
+      b.notes,
+      b.tracks
     ]
   })
   return '\uFEFF' + [header, ...rows].map((r) => r.map(cell).join(';')).join('\r\n') + '\r\n'

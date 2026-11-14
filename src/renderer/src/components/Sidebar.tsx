@@ -12,6 +12,8 @@ import {
 } from 'lucide-react'
 import { READ_STATUSES, type Location, type ReadStatus, type Stats, type Subject } from '@shared/types'
 import { flattenLocations } from '../util'
+import { MEDIA_TYPES, type MediaType } from '@shared/media'
+import { MEDIA_ICONS, statusLabel, type StatusKind } from '../media'
 import { useI18n } from '../i18n'
 
 export type Filter =
@@ -42,6 +44,13 @@ interface Props {
   onManageLocations: () => void
   /** Bücher wurden auf einen Standort, ein Fachgebiet oder einen Lesestatus gezogen */
   onDropBooks: (target: Filter, ids: number[]) => void
+  /** Medienart-Filter (zusätzlich zu den übrigen Filtern) */
+  mediaFilter: MediaType | null
+  onMediaFilter: (m: MediaType | null) => void
+  /** Bücher wurden auf eine Medienart gezogen */
+  onDropMedia: (m: MediaType, ids: number[]) => void
+  /** Bestimmt die Statusnamen („Gelesen", „Gesehen" …) */
+  statusKind: StatusKind
 }
 
 /** Navigationsbereich links: Filter nach Lesestatus, Fachgebiet und Standort */
@@ -50,6 +59,8 @@ export function Sidebar(p: Props) {
   const locs = useMemo(() => flattenLocations(p.locations), [p.locations])
   const is = (f: Filter) => JSON.stringify(f) === JSON.stringify(p.filter)
   const [dropKey, setDropKey] = useState('')
+  // Mehr als nur Bücher im Katalog? Dann gibt es den Medienart-Filter
+  const mixed = Object.keys(p.stats?.byMedia ?? {}).some((m) => m !== 'book')
   const accepts = (f: Filter) => f.kind === 'subject' || f.kind === 'location' || f.kind === 'status'
 
   const Item = ({
@@ -98,15 +109,53 @@ export function Sidebar(p: Props) {
           <Item
             f={{ kind: 'all' }}
             icon={<Library size={16} />}
-            label={t('nav.all')}
+            label={mixed ? t('nav.allMedia') : t('nav.all')}
             count={p.stats?.total}
           />
           <Item f={{ kind: 'favorites' }} icon={<Heart size={16} />} label={t('nav.favorites')} />
           <Item f={{ kind: 'statistics' }} icon={<BarChart3 size={16} />} label={t('nav.statistics')} />
         </div>
 
+        {mixed && (
+          <div className="nav-group">
+            <div className="nav-heading">{t('nav.media')}</div>
+            {MEDIA_TYPES.filter((m) => (p.stats?.byMedia[m] ?? 0) > 0 || p.mediaFilter === m).map((m) => {
+              const Icon = MEDIA_ICONS[m]
+              return (
+                <button
+                  key={m}
+                  className={`nav-item ${p.mediaFilter === m ? 'active' : ''} ${dropKey === 'media:' + m ? 'drop' : ''}`}
+                  onClick={() => p.onMediaFilter(p.mediaFilter === m ? null : m)}
+                  aria-pressed={p.mediaFilter === m}
+                  title={t(`mediaPlural.${m}`)}
+                  onDragOver={(e) => {
+                    if (!e.dataTransfer.types.includes(DND_BOOKS)) return
+                    e.preventDefault()
+                    e.dataTransfer.dropEffect = 'move'
+                    setDropKey('media:' + m)
+                  }}
+                  onDragLeave={() => setDropKey('')}
+                  onDrop={(e) => {
+                    setDropKey('')
+                    const raw = e.dataTransfer.getData(DND_BOOKS)
+                    if (!raw) return
+                    e.preventDefault()
+                    p.onDropMedia(m, JSON.parse(raw) as number[])
+                  }}
+                >
+                  <span className="nav-icon">
+                    <Icon size={16} />
+                  </span>
+                  <span className="nav-label">{t(`mediaPlural.${m}`)}</span>
+                  <span className="nav-count">{p.stats?.byMedia[m] ?? 0}</span>
+                </button>
+              )
+            })}
+          </div>
+        )}
+
         <div className="nav-group">
-          <div className="nav-heading">{t('nav.readStatus')}</div>
+          <div className="nav-heading">{p.statusKind === 'book' ? t('nav.readStatus') : t('nav.status')}</div>
           {READ_STATUSES.map((s) => {
             const Icon = STATUS_ICONS[s]
             return (
@@ -114,7 +163,7 @@ export function Sidebar(p: Props) {
                 key={s}
                 f={{ kind: 'status', status: s }}
                 icon={<Icon size={16} />}
-                label={t(`status.${s}`)}
+                label={statusLabel(t, s, p.statusKind)}
                 count={p.stats?.byStatus[s]}
               />
             )

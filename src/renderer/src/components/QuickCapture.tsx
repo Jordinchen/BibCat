@@ -9,11 +9,13 @@ import {
   type ReadStatus,
   type Subject
 } from '@shared/types'
-import { cleanIsbn, isValidIsbn, toIsbn13 } from '@shared/isbn'
+import { cleanIsbn, toIsbn13 } from '@shared/isbn'
+import { classifyCode, MEDIA_TYPES, type MediaType } from '@shared/media'
 import { Modal } from './Modal'
 import { Cover } from './Cover'
 import { errMsg, flattenLocations, primaryAuthor } from '../util'
-import { fetchBookData } from '../lookup'
+import { fetchMediaData } from '../lookup'
+import { statusLabel } from '../media'
 import { useI18n } from '../i18n'
 
 // Der Barcode-Leser ist groß und wird erst bei Bedarf geladen
@@ -42,42 +44,59 @@ export function QuickCapture({ subjects, locations, onClose, onChanged, onEdit }
   const [locationId, setLocationId] = useState<number | null>(null)
   const [subjectId, setSubjectId] = useState<number | null>(null)
   const [readStatus, setReadStatus] = useState<ReadStatus>('unread')
+  const [mediaType, setMediaType] = useState<MediaType | 'auto'>('auto')
   const [entries, setEntries] = useState<Entry[]>([])
   const queue = useRef(Promise.resolve())
   const seq = useRef(0)
   const inputRef = useRef<HTMLInputElement>(null)
   const locs = useMemo(() => flattenLocations(locations), [locations])
 
-  const defaults = useRef({ locationId, subjectId, readStatus })
-  defaults.current = { locationId, subjectId, readStatus }
+  const defaults = useRef({ locationId, subjectId, readStatus, mediaType })
+  defaults.current = { locationId, subjectId, readStatus, mediaType }
   const tr = useRef(t)
   tr.current = t
 
   const update = (key: number, e: Entry) => setEntries((list) => list.map((x) => (x.key === key ? e : x)))
 
-  async function process(key: number, raw: string) {
-    const isbn = toIsbn13(raw)!
+  /** Normalisierte Form: ISBN-10 wird zu ISBN-13, alles andere bleibt, wie es ist */
+  const normalize = (code: string) => (classifyCode(code) === 'isbn' ? toIsbn13(code)! : code)
+
+  async function process(key: number, code: string) {
+    const kind = classifyCode(code)
+    const isbn = normalize(code)
     try {
       const dup = await window.bibcraft.books.findByIsbn(isbn)
       if (dup) {
         update(key, { key, isbn, state: 'duplicate', book: dup })
         return
       }
-      const { data, sources, coverFile } = await fetchBookData(isbn)
+      const { data, sources, coverFile } = await fetchMediaData(isbn)
+      const { mediaType: chosen, ...rest } = defaults.current
+      // „Automatisch": die Quelle bestimmt die Art; ohne Treffer schließen wir aus dem Code
+      const detected: MediaType =
+        data.mediaType && data.mediaType !== 'book'
+          ? data.mediaType
+          : kind === 'isbn'
+            ? 'book'
+            : kind === 'issn'
+              ? 'periodical'
+              : 'film'
       const base: BookInput = {
         ...EMPTY_BOOK,
         ...data,
         isbn,
         coverFile,
-        ...defaults.current,
+        ...rest,
+        mediaType: chosen === 'auto' ? detected : chosen,
         acquiredDate: ''
       }
       if (!sources.length) {
         // Platzhalter anlegen, damit nichts verloren geht – Titel später nachtragen
-        const book = await window.bibcraft.books.create({
-          ...base,
-          title: tr.current('quick.unknownTitle', { isbn })
-        })
+        const title =
+          kind === 'isbn'
+            ? tr.current('quick.unknownTitle', { isbn })
+            : tr.current('quick.unknownCode', { code: isbn })
+        const book = await window.bibcraft.books.create({ ...base, title })
         update(key, { key, isbn, state: 'notfound', book })
       } else {
         const book = await window.bibcraft.books.create(base)
@@ -93,11 +112,11 @@ export function QuickCapture({ subjects, locations, onClose, onChanged, onEdit }
     const cleaned = cleanIsbn(raw)
     if (!cleaned) return
     const key = ++seq.current
-    if (!isValidIsbn(cleaned)) {
+    if (classifyCode(cleaned) === 'invalid') {
       setEntries((l) => [{ key, isbn: cleaned, state: 'invalid' }, ...l])
       return
     }
-    setEntries((l) => [{ key, isbn: toIsbn13(cleaned)!, state: 'pending' }, ...l])
+    setEntries((l) => [{ key, isbn: normalize(cleaned), state: 'pending' }, ...l])
     // Nacheinander abarbeiten, damit Duplikate beim schnellen Scannen erkannt werden
     queue.current = queue.current.then(() => process(key, cleaned))
   }
@@ -145,11 +164,22 @@ export function QuickCapture({ subjects, locations, onClose, onChanged, onEdit }
           </div>
           {camera && (
             <Suspense fallback={null}>
-              <Scanner continuous onIsbn={submit} />
+              <Scanner continuous anyCode onIsbn={submit} />
             </Suspense>
           )}
 
           <div className="quick-defaults">
+            <label className="field">
+              <span className="field-label">{t('quick.mediaType')}</span>
+              <select value={mediaType} onChange={(e) => setMediaType(e.target.value as MediaType | 'auto')}>
+                <option value="auto">{t('quick.auto')}</option>
+                {MEDIA_TYPES.map((m) => (
+                  <option key={m} value={m}>
+                    {t(`media.${m}`)}
+                  </option>
+                ))}
+              </select>
+            </label>
             <label className="field">
               <span className="field-label">{t('field.location')}</span>
               <select
@@ -183,7 +213,7 @@ export function QuickCapture({ subjects, locations, onClose, onChanged, onEdit }
               <select value={readStatus} onChange={(e) => setReadStatus(e.target.value as ReadStatus)}>
                 {READ_STATUSES.map((s) => (
                   <option key={s} value={s}>
-                    {t(`status.${s}`)}
+                    {statusLabel(t, s, mediaType === 'auto' ? 'mixed' : mediaType)}
                   </option>
                 ))}
               </select>
@@ -222,7 +252,9 @@ export function QuickCapture({ subjects, locations, onClose, onChanged, onEdit }
                   {e.state === 'notfound' && (
                     <>
                       <strong>{e.isbn}</strong>
-                      <span className="warn-text">{t('quick.notFound')}</span>
+                      <span className="warn-text">
+                        {e.book.mediaType === 'book' ? t('quick.notFound') : t('quick.notFoundMedia')}
+                      </span>
                     </>
                   )}
                   {e.state === 'duplicate' && (

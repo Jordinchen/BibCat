@@ -1,5 +1,5 @@
 import { lazy, Suspense, useMemo, useState, type ReactNode } from 'react'
-import { Camera, ImagePlus } from 'lucide-react'
+import { Camera, ImagePlus, Search } from 'lucide-react'
 import {
   EMPTY_BOOK,
   READ_STATUSES,
@@ -8,13 +8,23 @@ import {
   type Location,
   type Subject
 } from '@shared/types'
-import type { TKey } from '@shared/i18n'
-import { cleanIsbn, isValidIsbn } from '@shared/isbn'
+import { classifyCode, MEDIA_TYPES, type MediaType } from '@shared/media'
+import { cleanIsbn } from '@shared/isbn'
 import { Modal } from './Modal'
 import { Stars } from './Stars'
 import { Cover } from './Cover'
+import { TitleSearch } from './TitleSearch'
 import { errMsg, flattenLocations } from '../util'
-import { fetchBookData } from '../lookup'
+import { fetchMediaData, type LookupOutcome } from '../lookup'
+import {
+  bindingOptions,
+  fieldLabel,
+  MEDIA_ICONS,
+  readDateLabel,
+  SEARCHABLE,
+  shows,
+  statusLabel
+} from '../media'
 import { useI18n } from '../i18n'
 
 // Der Barcode-Leser ist groß und wird erst bei Bedarf geladen
@@ -22,14 +32,16 @@ const Scanner = lazy(() => import('./Scanner').then((m) => ({ default: m.Scanner
 
 interface Props {
   book: Book | null
+  /** Medienart für neue Einträge (z. B. aus dem aktiven Filter) */
+  defaultType?: MediaType
   subjects: Subject[]
   locations: Location[]
   onClose: () => void
   onSaved: (b: Book) => void
 }
 
-function toInput(b: Book | null): BookInput {
-  if (!b) return { ...EMPTY_BOOK }
+function toInput(b: Book | null, type: MediaType): BookInput {
+  if (!b) return { ...EMPTY_BOOK, mediaType: type }
   const { id: _id, createdAt: _c, updatedAt: _u, ...rest } = b
   return rest
 }
@@ -56,22 +68,20 @@ function Field({
   )
 }
 
-const BINDINGS: TKey[] = [
-  'binding.hardcover',
-  'binding.paperback',
-  'binding.softcover',
-  'binding.cloth',
-  'binding.halfLeather'
-]
 const LANG_CODES = ['ger', 'eng', 'fre', 'lat'] as const
+const isEmpty = (v: unknown) => v === '' || v === null || v === undefined
 
-export function BookEditor({ book, subjects, locations, onClose, onSaved }: Props) {
+export function BookEditor({ book, defaultType = 'book', subjects, locations, onClose, onSaved }: Props) {
   const { t } = useI18n()
-  const [form, setForm] = useState<BookInput>(() => toInput(book))
+  const [form, setForm] = useState<BookInput>(() => toInput(book, defaultType))
   const [busy, setBusy] = useState(false)
   const [scan, setScan] = useState(false)
+  const [searching, setSearching] = useState(false)
   const [msg, setMsg] = useState<{ kind: 'info' | 'warn' | 'error'; text: string } | null>(null)
   const locs = useMemo(() => flattenLocations(locations), [locations])
+  const type = form.mediaType
+  const L = (field: string) => fieldLabel(t, field, type)
+  const show = (field: keyof BookInput) => shows(type, field)
 
   const set = <K extends keyof BookInput>(k: K, v: BookInput[K]) => setForm((f) => ({ ...f, [k]: v }))
   const text = (k: keyof BookInput) => ({
@@ -79,36 +89,53 @@ export function BookEditor({ book, subjects, locations, onClose, onSaved }: Prop
     onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
       set(k, e.target.value as never)
   })
+  const num = (k: 'pages' | 'duration') => ({
+    type: 'number',
+    min: 0,
+    value: form[k] ?? '',
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) =>
+      set(k, e.target.value ? Number(e.target.value) : null)
+  })
+
+  /**
+   * Gefundene Daten übernehmen. Bei der Code-Abfrage werden nur leere Felder gefüllt;
+   * bei einem bewusst gewählten Suchtreffer ersetzen dessen Angaben die bisherigen.
+   */
+  function apply(r: LookupOutcome, overwrite: boolean) {
+    setForm((f) => {
+      const next = { ...f } as Record<string, unknown>
+      for (const [k, v] of Object.entries(r.data)) {
+        if (k === 'mediaType') continue
+        if (isEmpty(v)) continue
+        if (overwrite || isEmpty(next[k])) next[k] = v
+      }
+      // Die Quelle legt die Art fest (z. B. Barcode → Musik), Comics bleiben Comics
+      if (r.data.mediaType && r.data.mediaType !== 'book') next.mediaType = r.data.mediaType
+      if (r.coverFile && (overwrite || !f.coverFile)) next.coverFile = r.coverFile
+      return next as unknown as BookInput
+    })
+  }
 
   async function lookup(raw = form.isbn) {
-    const isbn = cleanIsbn(raw)
-    if (!isValidIsbn(isbn)) {
-      setMsg({ kind: 'error', text: t('msg.invalidIsbn') })
+    const code = cleanIsbn(raw)
+    if (classifyCode(code) === 'invalid') {
+      setMsg({ kind: 'error', text: t('msg.invalidCode') })
       return
     }
     setBusy(true)
     setMsg(null)
     try {
-      const dup = await window.bibcraft.books.findByIsbn(isbn)
-      const { data, sources, coverFile } = await fetchBookData(isbn)
-      if (!sources.length) {
-        setForm((f) => ({ ...f, isbn }))
+      const dup = await window.bibcraft.books.findByIsbn(code)
+      const r = await fetchMediaData(code)
+      if (!r.sources.length) {
+        setForm((f) => ({ ...f, isbn: code }))
         setMsg({ kind: 'warn', text: t('msg.noData') })
         return
       }
-      // Bereits ausgefüllte Felder bleiben erhalten
-      setForm((f) => {
-        const next = { ...f, isbn }
-        for (const [k, v] of Object.entries(data)) {
-          const cur = (f as Record<string, unknown>)[k]
-          if (cur === '' || cur === null || cur === undefined) (next as Record<string, unknown>)[k] = v
-        }
-        if (!f.coverFile && coverFile) next.coverFile = coverFile
-        return next
-      })
+      apply({ ...r, data: { ...r.data, isbn: code } }, false)
       const isDup = dup && dup.id !== book?.id
       const text =
-        t('msg.dataFrom', { sources: sources.join(', ') }) +
+        t('msg.dataFrom', { sources: r.sources.join(', ') }) +
         (isDup ? ' ' + t('msg.duplicate', { title: dup.title }) : '')
       setMsg({ kind: isDup ? 'warn' : 'info', text })
     } catch (e) {
@@ -138,7 +165,7 @@ export function BookEditor({ book, subjects, locations, onClose, onSaved }: Prop
   return (
     <Modal
       wide
-      title={book ? t('editor.titleEdit') : t('editor.titleNew')}
+      title={t(book ? 'editor.titleEditType' : 'editor.titleNewType', { type: t(`media.${type}`) })}
       onClose={onClose}
       footer={
         <>
@@ -152,6 +179,24 @@ export function BookEditor({ book, subjects, locations, onClose, onSaved }: Prop
         </>
       }
     >
+      <div className="media-picker" role="radiogroup" aria-label={t('field.mediaType')}>
+        {MEDIA_TYPES.map((m) => {
+          const Icon = MEDIA_ICONS[m]
+          return (
+            <button
+              key={m}
+              role="radio"
+              aria-checked={type === m}
+              className={type === m ? 'on' : ''}
+              onClick={() => set('mediaType', m)}
+            >
+              <Icon size={16} strokeWidth={1.75} />
+              {t(`media.${m}`)}
+            </button>
+          )
+        })}
+      </div>
+
       <div className="editor">
         <aside className="editor-side">
           <Cover book={form} className="cover-lg" />
@@ -176,7 +221,7 @@ export function BookEditor({ book, subjects, locations, onClose, onSaved }: Prop
             <Stars value={form.rating} onChange={(v) => set('rating', v)} />
           </div>
           <div className="side-block">
-            <span className="field-label">{t('editor.readStatus')}</span>
+            <span className="field-label">{t('nav.status')}</span>
             <div className="segmented vertical">
               {READ_STATUSES.map((s) => (
                 <button
@@ -185,13 +230,13 @@ export function BookEditor({ book, subjects, locations, onClose, onSaved }: Prop
                   className={form.readStatus === s ? 'active' : ''}
                   onClick={() => set('readStatus', s)}
                 >
-                  {t(`status.${s}`)}
+                  {statusLabel(t, s, type)}
                 </button>
               ))}
             </div>
           </div>
           {(form.readStatus === 'read' || form.readDate) && (
-            <Field label={t('editor.readDate')}>
+            <Field label={readDateLabel(t, type)}>
               <input type="date" {...text('readDate')} />
             </Field>
           )}
@@ -201,7 +246,8 @@ export function BookEditor({ book, subjects, locations, onClose, onSaved }: Prop
           <div className="isbn-bar">
             <input
               className="isbn-input"
-              placeholder={t('editor.isbnPlaceholder')}
+              placeholder={t('editor.codePlaceholder')}
+              aria-label={L('code')}
               value={form.isbn}
               onChange={(e) => set('isbn', e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && lookup()}
@@ -213,14 +259,20 @@ export function BookEditor({ book, subjects, locations, onClose, onSaved }: Prop
             <button className={`btn ${scan ? 'btn-active' : ''}`} onClick={() => setScan((s) => !s)}>
               <Camera size={16} /> {t('editor.scan')}
             </button>
+            {SEARCHABLE.includes(type) && (
+              <button className="btn" onClick={() => setSearching(true)}>
+                <Search size={16} /> {t('editor.searchOnline')}
+              </button>
+            )}
           </div>
           {scan && (
             <Suspense fallback={null}>
               <Scanner
-                onIsbn={(isbn) => {
+                anyCode
+                onIsbn={(code) => {
                   setScan(false)
-                  set('isbn', isbn)
-                  lookup(isbn)
+                  set('isbn', code)
+                  lookup(code)
                 }}
               />
             </Suspense>
@@ -236,50 +288,70 @@ export function BookEditor({ book, subjects, locations, onClose, onSaved }: Prop
               <Field label={t('field.subtitle')} span={4}>
                 <input {...text('subtitle')} />
               </Field>
-              <Field label={t('field.authors')} span={2} hint={t('field.authorsHint')}>
+              <Field label={L('authors')} span={show('contributors') ? 2 : 4} hint={L('authorsHint')}>
                 <input {...text('authors')} />
               </Field>
-              <Field label={t('field.contributors')} span={2} hint={t('field.contributorsHint')}>
-                <input {...text('contributors')} />
-              </Field>
+              {show('contributors') && (
+                <Field label={L('contributors')} span={2} hint={L('contributorsHint')}>
+                  <input {...text('contributors')} />
+                </Field>
+              )}
             </div>
           </section>
 
           <section>
             <h3>{t('editor.secPublication')}</h3>
             <div className="grid">
-              <Field label={t('field.publisher')} span={2}>
+              <Field label={L('publisher')} span={show('place') ? 2 : 3}>
                 <input {...text('publisher')} />
               </Field>
-              <Field label={t('field.place')}>
-                <input {...text('place')} />
-              </Field>
+              {show('place') && (
+                <Field label={t('field.place')}>
+                  <input {...text('place')} />
+                </Field>
+              )}
               <Field label={t('field.year')}>
                 <input {...text('year')} inputMode="numeric" />
               </Field>
-              <Field label={t('field.edition')}>
+              <Field label={L('edition')}>
                 <input {...text('edition')} />
               </Field>
-              <Field label={t('field.pages')}>
-                <input
-                  type="number"
-                  min={0}
-                  value={form.pages ?? ''}
-                  onChange={(e) => set('pages', e.target.value ? Number(e.target.value) : null)}
-                />
-              </Field>
-              <Field label={t('field.binding')}>
-                <input {...text('binding')} list="bindings" />
+              {show('pages') && (
+                <Field label={t('field.pages')}>
+                  <input {...num('pages')} />
+                </Field>
+              )}
+              {show('duration') && (
+                <Field label={L('duration')}>
+                  <input {...num('duration')} />
+                </Field>
+              )}
+              <Field label={L('binding')}>
+                <input {...text('binding')} list={`bindings-${type}`} />
               </Field>
               <Field label={t('field.language')}>
                 <input {...text('language')} list="languages" />
               </Field>
-              <Field label={t('field.series')} span={3}>
-                <input {...text('series')} />
-              </Field>
-              <Field label={t('field.seriesNumber')}>
-                <input {...text('seriesNumber')} />
-              </Field>
+              {show('ageRating') && (
+                <Field label={t('field.ageRating')} hint={t('field.ageRatingHint')}>
+                  <input {...text('ageRating')} />
+                </Field>
+              )}
+              {show('players') && (
+                <Field label={t('field.players')} hint={t('field.playersHint')}>
+                  <input {...text('players')} />
+                </Field>
+              )}
+              {show('series') && (
+                <Field label={L('series')} span={3}>
+                  <input {...text('series')} />
+                </Field>
+              )}
+              {show('seriesNumber') && (
+                <Field label={L('seriesNumber')}>
+                  <input {...text('seriesNumber')} />
+                </Field>
+              )}
             </div>
           </section>
 
@@ -337,6 +409,11 @@ export function BookEditor({ book, subjects, locations, onClose, onSaved }: Prop
           <section>
             <h3>{t('editor.secContent')}</h3>
             <div className="grid">
+              {show('tracks') && (
+                <Field label={t('field.tracks')} span={4} hint={t('field.tracksHint')}>
+                  <textarea rows={6} className="mono" {...text('tracks')} />
+                </Field>
+              )}
               <Field label={t('field.description')} span={4}>
                 <textarea rows={3} {...text('description')} />
               </Field>
@@ -347,16 +424,32 @@ export function BookEditor({ book, subjects, locations, onClose, onSaved }: Prop
           </section>
         </div>
       </div>
-      <datalist id="bindings">
-        {BINDINGS.map((k) => (
-          <option key={k} value={t(k)} />
-        ))}
-      </datalist>
+      {MEDIA_TYPES.map((m) => (
+        <datalist key={m} id={`bindings-${m}`}>
+          {bindingOptions(t, m).map((o) => (
+            <option key={o} value={o} />
+          ))}
+        </datalist>
+      ))}
       <datalist id="languages">
         {LANG_CODES.map((c) => (
           <option key={c} value={c} label={t(`lang.${c}`)} />
         ))}
       </datalist>
+      {searching && (
+        <TitleSearch
+          type={type}
+          initialQuery={[form.title, type === 'music' ? form.authors.split(';')[0] : '']
+            .filter(Boolean)
+            .join(' ')}
+          onClose={() => setSearching(false)}
+          onPick={(r) => {
+            setSearching(false)
+            apply(r, true)
+            setMsg({ kind: 'info', text: t('msg.dataFrom', { sources: r.sources.join(', ') }) })
+          }}
+        />
+      )}
     </Modal>
   )
 }

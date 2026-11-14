@@ -54,6 +54,12 @@ const api: BibCraftApi = {
     remove: call('locations:remove')
   },
   isbn: { lookup: call('isbn:lookup') },
+  media: {
+    lookupCode: call('media:lookupCode'),
+    search: call('media:search'),
+    details: call('media:details')
+  },
+  settings: { tmdb: call('settings:tmdb'), setTmdbKey: call('settings:setTmdbKey') },
   covers: { download: call('covers:download'), pick: call('covers:pick') },
   data: {
     exportCsv: call('data:exportCsv'),

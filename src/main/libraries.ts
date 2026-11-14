@@ -16,6 +16,8 @@ interface ProfileData {
   language?: Lang
   /** Beim Start automatisch nach Updates suchen (Standard: ja) */
   autoUpdate?: boolean
+  /** TMDb-Schlüssel, mit dem Schutz des Betriebssystems verschlüsselt („enc:…") */
+  tmdbKey?: string
 }
 
 /** Ordnerpfade vergleichbar machen (Windows/macOS unterscheiden Groß-/Kleinschreibung nicht) */
@@ -71,6 +73,7 @@ export class Profile {
       if (typeof raw.current === 'string') this.data.current = raw.current
       if (raw.language === 'de' || raw.language === 'en') this.data.language = raw.language
       if (typeof raw.autoUpdate === 'boolean') this.data.autoUpdate = raw.autoUpdate
+      if (typeof raw.tmdbKey === 'string') this.data.tmdbKey = raw.tmdbKey
     } catch {
       /* erste Nutzung oder beschädigte Datei: mit leerem Profil beginnen */
     }
@@ -94,6 +97,16 @@ export class Profile {
 
   get language(): Lang | undefined {
     return this.data.language
+  }
+
+  get tmdbKey(): string | undefined {
+    return this.data.tmdbKey
+  }
+
+  setTmdbKey(stored: string | undefined): void {
+    if (stored) this.data.tmdbKey = stored
+    else delete this.data.tmdbKey
+    this.save()
   }
 
   get autoUpdate(): boolean {

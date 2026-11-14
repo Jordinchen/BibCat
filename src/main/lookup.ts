@@ -4,11 +4,11 @@ import { AppError } from '@shared/i18n'
 
 const TIMEOUT_MS = 12000
 
-async function fetchText(url: string): Promise<string | null> {
+export async function fetchText(url: string): Promise<string | null> {
   try {
     const res = await fetch(url, {
       signal: AbortSignal.timeout(TIMEOUT_MS),
-      headers: { 'User-Agent': 'BibCraft/0.2 (Desktop-Katalog)' }
+      headers: { 'User-Agent': 'BibCraft (https://github.com/Jordinchen/BibCat)' }
     })
     if (!res.ok) return null
     return await res.text()
@@ -172,6 +172,17 @@ async function fromDnb(isbn: string): Promise<IsbnResult | null> {
     data,
     coverUrl: `https://portal.dnb.de/opac/mvb/cover?isbn=${isbn}`
   }
+}
+
+/** Zeitschriften über ihre ISSN bei der Deutschen Nationalbibliothek suchen */
+export async function lookupIssn(issn: string): Promise<IsbnResult[]> {
+  const url =
+    'https://services.dnb.de/sru/dnb?version=1.1&operation=searchRetrieve' +
+    `&query=num%3D${encodeURIComponent(issn)}&recordSchema=MARC21-xml&maximumRecords=1`
+  const xml = await fetchText(url)
+  if (!xml || !/<numberOfRecords>[1-9]/.test(xml)) return []
+  const data = marcToBook(parseMarcXml(xml))
+  return data ? [{ source: 'Deutsche Nationalbibliothek', data: { ...data, mediaType: 'periodical' } }] : []
 }
 
 export function openLibraryToBook(json: unknown, isbn: string): IsbnResult | null {

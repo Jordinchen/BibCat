@@ -12,12 +12,15 @@ import type {
   Subject
 } from '@shared/types'
 import { cleanIsbn, toIsbn13 } from '@shared/isbn'
+import { EMPTY_BOOK } from '@shared/types'
 import { AppError } from '@shared/i18n'
+import { isMediaType, MEDIA_TYPES, READABLE, type MediaType } from '@shared/media'
 
 type Row = Record<string, unknown>
 
 /** Abbildung Feldname (camelCase) -> Spalte (snake_case) */
 const BOOK_COLUMNS: Record<keyof BookInput, string> = {
+  mediaType: 'media_type',
   title: 'title',
   subtitle: 'subtitle',
   authors: 'authors',
@@ -29,7 +32,11 @@ const BOOK_COLUMNS: Record<keyof BookInput, string> = {
   isbn: 'isbn',
   language: 'language',
   pages: 'pages',
+  duration: 'duration',
   binding: 'binding',
+  ageRating: 'age_rating',
+  tracks: 'tracks',
+  players: 'players',
   series: 'series',
   seriesNumber: 'series_number',
   subjectId: 'subject_id',
@@ -55,7 +62,7 @@ const SORT_COLUMNS: Record<string, string> = {
   callNumber: 'b.call_number COLLATE NOCASE'
 }
 
-const MIGRATIONS: string[] = [
+export const MIGRATIONS: string[] = [
   `
   CREATE TABLE subjects (
     id INTEGER PRIMARY KEY,
@@ -137,12 +144,47 @@ const MIGRATIONS: string[] = [
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
   );
+  `,
+  // Version 3: Medienarten (Filme, Musik, Spiele …) und Titelliste im Volltextindex
+  `
+  ALTER TABLE books ADD COLUMN media_type TEXT NOT NULL DEFAULT 'book'
+    CHECK (media_type IN ('book','comic','periodical','film','music','game'));
+  ALTER TABLE books ADD COLUMN duration INTEGER;
+  ALTER TABLE books ADD COLUMN age_rating TEXT NOT NULL DEFAULT '';
+  ALTER TABLE books ADD COLUMN tracks TEXT NOT NULL DEFAULT '';
+  ALTER TABLE books ADD COLUMN players TEXT NOT NULL DEFAULT '';
+  CREATE INDEX books_media ON books(media_type);
+
+  DROP TRIGGER books_ai;
+  DROP TRIGGER books_ad;
+  DROP TRIGGER books_au;
+  DROP TABLE books_fts;
+  CREATE VIRTUAL TABLE books_fts USING fts5(
+    title, subtitle, authors, contributors, publisher, series, keywords, call_number, isbn, description, notes, tracks,
+    content='books', content_rowid='id', tokenize='unicode61 remove_diacritics 2'
+  );
+  CREATE TRIGGER books_ai AFTER INSERT ON books BEGIN
+    INSERT INTO books_fts(rowid, title, subtitle, authors, contributors, publisher, series, keywords, call_number, isbn, description, notes, tracks)
+    VALUES (new.id, new.title, new.subtitle, new.authors, new.contributors, new.publisher, new.series, new.keywords, new.call_number, new.isbn, new.description, new.notes, new.tracks);
+  END;
+  CREATE TRIGGER books_ad AFTER DELETE ON books BEGIN
+    INSERT INTO books_fts(books_fts, rowid, title, subtitle, authors, contributors, publisher, series, keywords, call_number, isbn, description, notes, tracks)
+    VALUES ('delete', old.id, old.title, old.subtitle, old.authors, old.contributors, old.publisher, old.series, old.keywords, old.call_number, old.isbn, old.description, old.notes, old.tracks);
+  END;
+  CREATE TRIGGER books_au AFTER UPDATE ON books BEGIN
+    INSERT INTO books_fts(books_fts, rowid, title, subtitle, authors, contributors, publisher, series, keywords, call_number, isbn, description, notes, tracks)
+    VALUES ('delete', old.id, old.title, old.subtitle, old.authors, old.contributors, old.publisher, old.series, old.keywords, old.call_number, old.isbn, old.description, old.notes, old.tracks);
+    INSERT INTO books_fts(rowid, title, subtitle, authors, contributors, publisher, series, keywords, call_number, isbn, description, notes, tracks)
+    VALUES (new.id, new.title, new.subtitle, new.authors, new.contributors, new.publisher, new.series, new.keywords, new.call_number, new.isbn, new.description, new.notes, new.tracks);
+  END;
+  INSERT INTO books_fts(books_fts) VALUES ('rebuild');
   `
 ]
 
 function rowToBook(r: Row): Book {
   return {
     id: r.id as number,
+    mediaType: r.media_type as MediaType,
     title: r.title as string,
     subtitle: r.subtitle as string,
     authors: r.authors as string,
@@ -154,7 +196,11 @@ function rowToBook(r: Row): Book {
     isbn: r.isbn as string,
     language: r.language as string,
     pages: (r.pages as number | null) ?? null,
+    duration: (r.duration as number | null) ?? null,
     binding: r.binding as string,
+    ageRating: r.age_rating as string,
+    tracks: r.tracks as string,
+    players: r.players as string,
     series: r.series as string,
     seriesNumber: r.series_number as string,
     subjectId: (r.subject_id as number | null) ?? null,
@@ -214,15 +260,22 @@ export class Catalog {
 
   // ---------- Bücher ----------
 
-  private normalize(b: BookInput): BookInput {
-    const isbn = cleanIsbn(b.isbn)
+  private normalize(input: BookInput): BookInput {
+    // Fehlende Felder (z. B. aus älteren Clients) mit Standardwerten auffüllen
+    const b: BookInput = { ...EMPTY_BOOK, ...input }
+    const isbn = cleanIsbn(b.isbn ?? '')
     return {
       ...b,
       title: b.title.trim(),
       isbn: toIsbn13(isbn) ?? isbn,
       rating: Math.max(0, Math.min(5, Math.round(b.rating || 0))),
       copies: Math.max(0, Math.round(b.copies ?? 1)),
-      pages: b.pages ? Math.round(b.pages) : null
+      pages: b.pages ? Math.round(b.pages) : null,
+      duration: b.duration ? Math.round(b.duration) : null,
+      mediaType: isMediaType(b.mediaType) ? b.mediaType : 'book',
+      ageRating: b.ageRating ?? '',
+      tracks: b.tracks ?? '',
+      players: b.players ?? ''
     }
   }
 
@@ -245,6 +298,10 @@ export class Catalog {
         where.push('b.id IN (SELECT rowid FROM books_fts WHERE books_fts MATCH $fts)')
         args.fts = fts
       }
+    }
+    if (q.mediaType) {
+      where.push('b.media_type = $media')
+      args.media = q.mediaType
     }
     if (q.subjectId) {
       where.push('b.subject_id = $subject')
@@ -345,6 +402,7 @@ export class Catalog {
         const next = this.toInput(b)
         if (patch.locationId !== undefined) next.locationId = patch.locationId
         if (patch.subjectId !== undefined) next.subjectId = patch.subjectId
+        if (patch.mediaType && isMediaType(patch.mediaType)) next.mediaType = patch.mediaType
         if (patch.rating !== undefined) next.rating = patch.rating
         if (patch.readStatus !== undefined) {
           next.readStatus = patch.readStatus
@@ -411,7 +469,7 @@ export class Catalog {
     const year = String(now.getFullYear())
 
     const base = one(`SELECT COUNT(*) AS n, COALESCE(SUM(copies),0) AS c,
-        COALESCE(SUM(CASE WHEN read_status = 'read' THEN pages END),0) AS pages,
+        COALESCE(SUM(CASE WHEN read_status = 'read' AND media_type IN (${READABLE.map((m) => `'${m}'`).join(',')}) THEN pages END),0) AS pages,
         AVG(CASE WHEN rating > 0 THEN rating END) AS avg,
         SUM(CASE WHEN rating > 0 THEN 1 ELSE 0 END) AS rated,
         SUM(CASE WHEN substr(created_at,1,4) = '${year}' THEN 1 ELSE 0 END) AS addedYear,
@@ -521,7 +579,15 @@ export class Catalog {
       byDecade,
       topAuthors: top(authors, 10),
       byLanguage: top(languages, 8),
-      ratings
+      ratings,
+      byMedia: (
+        all('SELECT media_type AS m, COUNT(*) AS n FROM books GROUP BY media_type') as {
+          m: MediaType
+          n: number
+        }[]
+      )
+        .sort((a, b) => MEDIA_TYPES.indexOf(a.m) - MEDIA_TYPES.indexOf(b.m))
+        .map((r) => ({ key: r.m, label: r.m, count: r.n }))
     }
   }
 
@@ -536,7 +602,13 @@ export class Catalog {
       .all() as { s: ReadStatus; n: number }[]) {
       byStatus[r.s] = r.n
     }
-    return { total: t.n, copies: t.c, byStatus }
+    const byMedia: Stats['byMedia'] = {}
+    for (const r of this.db
+      .prepare('SELECT media_type AS m, COUNT(*) AS n FROM books GROUP BY media_type')
+      .all() as { m: MediaType; n: number }[]) {
+      byMedia[r.m] = r.n
+    }
+    return { total: t.n, copies: t.c, byStatus, byMedia }
   }
 
   // ---------- Fachgebiete ----------

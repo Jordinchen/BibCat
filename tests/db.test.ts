@@ -93,6 +93,7 @@ describe('Catalog', () => {
     expect(c.stats()).toEqual({
       total: 2,
       copies: 3,
+      byMedia: { book: 2 },
       byStatus: { unread: 0, reading: 1, read: 1, abandoned: 0 }
     })
     c.deleteSubject(s.id)
@@ -104,12 +105,12 @@ describe('Catalog', () => {
     const shelf = c.saveLocation({ name: 'Regal 2', parentId: room.id })
     c.createBook(book({ title: 'Titel; mit "Zeichen"', locationId: shelf.id }))
     const csv = booksToCsv(c.listBooks(), c.listSubjects(), c.listLocations(), translator('de'))
-    expect(csv.startsWith('﻿Signatur;Titel')).toBe(true)
+    expect(csv.startsWith('\uFEFFMedienart;Signatur;Titel')).toBe(true)
     expect(csv).toContain('"Titel; mit ""Zeichen"""')
     expect(csv).toContain('Büro › Regal 2')
     expect(csv).toContain(';Ungelesen;')
     const en = booksToCsv(c.listBooks(), c.listSubjects(), c.listLocations(), translator('en'))
-    expect(en.startsWith('\uFEFFCall number;Title')).toBe(true)
+    expect(en.startsWith('\uFEFFMedia type;Call number;Title')).toBe(true)
     expect(en).toContain(';Unread;')
   })
 })

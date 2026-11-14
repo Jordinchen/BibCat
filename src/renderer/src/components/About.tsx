@@ -50,6 +50,10 @@ export function AboutDialog({ version, onClose }: { version: string; onClose: ()
         </>
       )}
 
+      <h3 className="about-section">{t('about.dataSources')}</h3>
+      <p className="about-sources">{t('about.dataSourcesText')}</p>
+      <p className="muted about-tmdb">{t('about.tmdb')}</p>
+
       <h3 className="about-section">{t('updates.title')}</h3>
       <div className="about-updates">
         <div className="row gap-sm">

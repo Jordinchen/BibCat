@@ -12,6 +12,7 @@ import {
   FileSpreadsheet,
   FolderOpen,
   Info,
+  Settings,
   RefreshCw,
   FolderPlus,
   FolderSearch,
@@ -33,6 +34,7 @@ import { LANGUAGES, type Lang, type TKey } from '@shared/i18n'
 import { Stars } from './Stars'
 import { STATUS_ICONS } from './Sidebar'
 import { useI18n } from '../i18n'
+import { statusLabel, type StatusKind } from '../media'
 
 export type RibbonTab = 'file' | 'home' | 'catalog' | 'view'
 const TABS: RibbonTab[] = ['file', 'home', 'catalog', 'view']
@@ -74,6 +76,9 @@ export interface RibbonProps {
   onManageLibraries: () => void
   onAbout: () => void
   onCheckUpdates: () => void
+  onSettings: () => void
+  /** Statusnamen der aktuellen Ansicht; bei einer Auswahl gilt deren Medienart */
+  statusKind: StatusKind
 }
 
 function load<T>(key: string, fallback: T): T {
@@ -173,6 +178,9 @@ export function Ribbon(p: RibbonProps) {
   }, [peek])
 
   const sel = p.selection.length > 0
+  // Statusnamen nach der Auswahl: nur Filme ergibt Filmnamen, gemischt ergibt neutrale Namen
+  const selTypes = new Set(p.selection.map((b) => b.mediaType))
+  const kind: StatusKind = selTypes.size === 1 ? [...selTypes][0] : selTypes.size > 1 ? 'mixed' : p.statusKind
   // Gemeinsamer Wert der Auswahl, sonst undefined
   const common = <K extends keyof Book>(k: K): Book[K] | undefined =>
     p.selection.length && p.selection.every((b) => b[k] === p.selection[0][k]) ? p.selection[0][k] : undefined
@@ -223,6 +231,9 @@ export function Ribbon(p: RibbonProps) {
                 <Big icon={DatabaseBackup} label={t('cmd.backup')} onClick={p.onBackup} />
                 <Big icon={FolderSearch} label={t('cmd.openFolder')} onClick={p.onOpenFolder} />
               </Group>
+              <Group label={t('group.options')}>
+                <Big icon={Settings} label={t('cmd.settings')} onClick={p.onSettings} />
+              </Group>
               <Group label={t('group.info')}>
                 <Big icon={RefreshCw} label={t('cmd.checkUpdates')} onClick={p.onCheckUpdates} />
                 <Big icon={Info} label={t('cmd.about')} onClick={p.onAbout} />
@@ -234,9 +245,13 @@ export function Ribbon(p: RibbonProps) {
             <>
               <Group label={t('group.capture')}>
                 <Big icon={ScanBarcode} label={t('cmd.quickCapture')} onClick={p.onQuick} />
-                <Big icon={BookPlus} label={t('cmd.newBook')} onClick={p.onNew} />
+                <Big
+                  icon={BookPlus}
+                  label={p.statusKind === 'book' ? t('cmd.newBook') : t('cmd.newItem')}
+                  onClick={p.onNew}
+                />
               </Group>
-              <Group label={t('group.book')}>
+              <Group label={p.statusKind === 'book' ? t('group.book') : t('group.item')}>
                 <Big
                   icon={Pencil}
                   label={t('cmd.editBook')}
@@ -260,13 +275,13 @@ export function Ribbon(p: RibbonProps) {
                   />
                 </Stack>
               </Group>
-              <Group label={t('group.readStatus')}>
+              <Group label={kind === 'book' ? t('group.readStatus') : t('nav.status')}>
                 <div className="rb-grid2">
                   {READ_STATUSES.map((s) => (
                     <Small
                       key={s}
                       icon={STATUS_ICONS[s]}
-                      label={t(`status.${s}`)}
+                      label={statusLabel(t, s, kind)}
                       onClick={() => p.onStatus(s)}
                       disabled={!sel}
                       active={common('readStatus') === s}

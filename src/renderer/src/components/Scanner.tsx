@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { BrowserMultiFormatReader, type IScannerControls } from '@zxing/browser'
 import { BarcodeFormat, DecodeHintType } from '@zxing/library'
 import { isValidIsbn13 } from '@shared/isbn'
+import { isValidEan } from '@shared/media'
 import { useI18n } from '../i18n'
 
 interface Props {
@@ -9,13 +10,15 @@ interface Props {
   onIsbn: (isbn: string) => void
   /** Scanner läuft weiter (Schnellerfassung) statt nach dem ersten Treffer zu stoppen */
   continuous?: boolean
+  /** Alle EAN/UPC-Codes annehmen (DVDs, CDs, Spiele) statt nur Buch-ISBNs */
+  anyCode?: boolean
 }
 
 /**
- * Liest EAN-13-Barcodes über die Kamera. Akzeptiert nur Codes mit Präfix 978/979
+ * Liest Barcodes über die Kamera. Ohne `anyCode` nur EAN-13 mit Präfix 978/979
  * (Bookland), damit Preis- oder Artikel-Barcodes ignoriert werden.
  */
-export function Scanner({ onIsbn, continuous }: Props) {
+export function Scanner({ onIsbn, continuous, anyCode }: Props) {
   const { t } = useI18n()
   const tr = useRef(t)
   tr.current = t
@@ -40,7 +43,10 @@ export function Scanner({ onIsbn, continuous }: Props) {
   useEffect(() => {
     if (!video.current) return
     const hints = new Map()
-    hints.set(DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.EAN_13])
+    hints.set(
+      DecodeHintType.POSSIBLE_FORMATS,
+      anyCode ? [BarcodeFormat.EAN_13, BarcodeFormat.UPC_A, BarcodeFormat.EAN_8] : [BarcodeFormat.EAN_13]
+    )
     hints.set(DecodeHintType.TRY_HARDER, true)
     const reader = new BrowserMultiFormatReader(hints, { delayBetweenScanAttempts: 120 })
     let controls: IScannerControls | undefined
@@ -50,7 +56,8 @@ export function Scanner({ onIsbn, continuous }: Props) {
       .decodeFromVideoDevice(deviceId || undefined, video.current, (result, _err, ctl) => {
         if (!result) return
         const code = result.getText()
-        if (!/^97[89]\d{10}$/.test(code) || !isValidIsbn13(code)) return
+        const ok = anyCode ? isValidEan(code) : /^97[89]\d{10}$/.test(code) && isValidIsbn13(code)
+        if (!ok) return
         const now = Date.now()
         // Gleichen Code nicht mehrfach hintereinander melden
         if (code === last.current.code && now - last.current.at < 3000) return
@@ -73,7 +80,7 @@ export function Scanner({ onIsbn, continuous }: Props) {
       cancelled = true
       controls?.stop()
     }
-  }, [deviceId, continuous])
+  }, [deviceId, continuous, anyCode])
 
   return (
     <div className="scanner">

@@ -1,14 +1,19 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Table2, BarChart3 } from 'lucide-react'
 import { READ_STATUSES, type CountRow, type Statistics } from '@shared/types'
-import { localeOf } from '@shared/i18n'
+import { localeOf, type TKey } from '@shared/i18n'
 import type { Filter } from './Sidebar'
 import { useI18n } from '../i18n'
+import { MEDIA_ICONS, statusLabel, type StatusKind } from '../media'
+import type { MediaType } from '@shared/media'
 
 interface Props {
   /** Ändert sich bei jeder Katalogänderung, damit die Zahlen neu geladen werden */
   version: unknown
   onNavigate: (f: Filter) => void
+  /** Klick auf einen Balken „Nach Medienart" */
+  onMedia: (m: MediaType) => void
+  statusKind: StatusKind
 }
 
 interface Tip {
@@ -104,7 +109,7 @@ function HBars({
   onPick,
   tip
 }: {
-  rows: (CountRow & { display: string })[]
+  rows: (CountRow & { display: string; icon?: ReactNode })[]
   colorOf?: (r: CountRow) => string | undefined
   onPick?: (r: CountRow) => void
   tip: ReturnType<typeof useTip>
@@ -128,6 +133,7 @@ function HBars({
           >
             <span className="hbar-label">
               {color && <span className="dot" style={{ background: color }} />}
+              {r.icon && <span className="hbar-icon">{r.icon}</span>}
               <span className={r.key === null ? 'muted' : ''}>{r.display}</span>
             </span>
             <span className="hbar-track">
@@ -197,11 +203,13 @@ function Columns({
 function StatusBar({
   s,
   onPick,
-  tip
+  tip,
+  kind
 }: {
   s: Statistics
   onPick: (f: Filter) => void
   tip: ReturnType<typeof useTip>
+  kind: StatusKind
 }) {
   const { t, lang } = useI18n()
   const nf = new Intl.NumberFormat(localeOf(lang))
@@ -218,9 +226,13 @@ function StatusBar({
               style={{ flexGrow: s.byStatus[st] }}
               onClick={() => onPick({ kind: 'status', status: st })}
               onMouseMove={(e) =>
-                tip.show(e, t(`status.${st}`), `${nf.format(s.byStatus[st])} · ${Math.round(share * 100)} %`)
+                tip.show(
+                  e,
+                  statusLabel(t, st, kind),
+                  `${nf.format(s.byStatus[st])} · ${Math.round(share * 100)} %`
+                )
               }
-              aria-label={`${t(`status.${st}`)}: ${s.byStatus[st]}`}
+              aria-label={`${statusLabel(t, st, kind)}: ${s.byStatus[st]}`}
             >
               {share >= 0.08 && <span>{Math.round(share * 100)} %</span>}
             </button>
@@ -231,7 +243,7 @@ function StatusBar({
         {READ_STATUSES.map((st) => (
           <li key={st}>
             <span className={`legend-key seg-${st}`} />
-            {t(`status.${st}`)}
+            {statusLabel(t, st, kind)}
             <span className="muted">{nf.format(s.byStatus[st])}</span>
           </li>
         ))}
@@ -240,10 +252,13 @@ function StatusBar({
   )
 }
 
-export function StatisticsView({ version, onNavigate }: Props) {
+export function StatisticsView({ version, onNavigate, onMedia, statusKind: kind }: Props) {
   const { t, lang } = useI18n()
   const [s, setS] = useState<Statistics | null>(null)
   const tip = useTip()
+  // Bei gemischten Medien neutrale Begriffe („abgeschlossen" statt „gelesen")
+  const mk = <K extends TKey>(key: K): TKey =>
+    kind === 'mixed' && t(`${key}.mixed` as TKey) !== `${key}.mixed` ? (`${key}.mixed` as TKey) : key
   const locale = localeOf(lang)
 
   useEffect(() => {
@@ -313,7 +328,7 @@ export function StatisticsView({ version, onNavigate }: Props) {
           <span className="muted">{t('stats.copies', { n: nf.format(s.copies) })}</span>
         </div>
         <div className="st-tile">
-          <span className="st-label">{t('stats.readShare')}</span>
+          <span className="st-label">{t(mk('stats.readShare'))}</span>
           <span className="st-value">
             {new Intl.NumberFormat(locale, { style: 'percent' }).format(readShare)}
           </span>
@@ -322,7 +337,7 @@ export function StatisticsView({ version, onNavigate }: Props) {
           </span>
         </div>
         <div className="st-tile">
-          <span className="st-label">{t('stats.pagesRead')}</span>
+          <span className="st-label">{t(mk('stats.pagesRead'))}</span>
           <span className="st-value">{nf.format(s.pagesRead)}</span>
         </div>
         <div className="st-tile">
@@ -340,19 +355,38 @@ export function StatisticsView({ version, onNavigate }: Props) {
           <span className="st-value">{nf.format(s.addedThisYear)}</span>
         </div>
         <div className="st-tile">
-          <span className="st-label">{t('stats.readThisYear', { year })}</span>
+          <span className="st-label">{t(mk('stats.readThisYear'), { year })}</span>
           <span className="st-value">{nf.format(s.readThisYear)}</span>
         </div>
       </div>
 
       <div className="st-grid">
         <Card
-          title={t('stats.byStatus')}
+          title={t(mk('stats.byStatus'))}
           wide
-          rows={READ_STATUSES.map((st) => ({ label: t(`status.${st}`), count: s.byStatus[st] }))}
+          rows={READ_STATUSES.map((st) => ({ label: statusLabel(t, st, kind), count: s.byStatus[st] }))}
         >
-          <StatusBar s={s} onPick={onNavigate} tip={tip} />
+          <StatusBar s={s} onPick={onNavigate} tip={tip} kind={kind} />
         </Card>
+        {s.byMedia.length > 1 && (
+          <Card
+            title={t('stats.byMedia')}
+            rows={s.byMedia.map((r) => ({ label: t(`mediaPlural.${r.key as MediaType}`), count: r.count }))}
+          >
+            <HBars
+              rows={s.byMedia.map((r) => {
+                const Icon = MEDIA_ICONS[r.key as MediaType]
+                return {
+                  ...r,
+                  display: t(`mediaPlural.${r.key as MediaType}`),
+                  icon: <Icon size={14} />
+                }
+              })}
+              onPick={(r) => onMedia(r.key as MediaType)}
+              tip={tip}
+            />
+          </Card>
+        )}
         <Card
           title={t('stats.bySubject')}
           rows={named(s.bySubject).map((r) => ({ label: r.display, count: r.count }))}
@@ -384,14 +418,14 @@ export function StatisticsView({ version, onNavigate }: Props) {
           <Columns rows={months} tip={tip} />
         </Card>
         <Card
-          title={t('stats.readByYear')}
-          hint={t('stats.readByYearHint')}
+          title={t(mk('stats.readByYear'))}
+          hint={t(mk('stats.readByYearHint'))}
           rows={years.map((r) => ({ label: r.display, count: r.count }))}
         >
           <Columns rows={years} tip={tip} maxLabels={8} />
         </Card>
         <Card
-          title={t('stats.topAuthors')}
+          title={t(mk('stats.topAuthors'))}
           rows={s.topAuthors.map((r) => ({ label: r.label, count: r.count }))}
         >
           <HBars rows={s.topAuthors.map((r) => ({ ...r, display: r.label }))} tip={tip} />

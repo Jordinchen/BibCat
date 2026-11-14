@@ -3,6 +3,29 @@
 Alle nennenswerten Änderungen an BibCraft. Die Versionsnummern folgen
 [Semantic Versioning](https://semver.org/lang/de/).
 
+## 0.6.0 – 2026-11-14
+
+**Filme, Musik, Spiele, Comics und Zeitschriften**
+
+- Neben Büchern verwaltet BibCraft jetzt Comics, Zeitschriften, Filme und Serien, Musik und Spiele –
+  gemischt in einer Bibliothek. Links unter *Medienart* lässt sich danach filtern, kombinierbar mit
+  Status, Standort und Fachgebiet.
+- Felder und Begriffe passen sich der Art an: beim Film Regie, Darsteller, Laufzeit, Format und
+  Altersfreigabe, bei Musik Künstler, Label und Titelliste, bei Spielen Plattform und Spieleranzahl.
+  Aus „Gelesen" wird „Gesehen", „Gehört" oder „Durchgespielt".
+- Barcodes von CDs und Schallplatten werden über MusicBrainz erkannt, inklusive Cover und Titelliste.
+  Zeitschriften über ihre ISSN bei der Deutschen Nationalbibliothek.
+- Neu im Editor: *Online suchen* findet Filme, Serien, Musik, Spiele und Comics nach Titel
+  (Wikidata und MusicBrainz, für Filme zusätzlich TMDb).
+- Neu unter *Datei › Einstellungen*: eigener TMDb-Schlüssel für Filme und Serien; er wird
+  verschlüsselt gespeichert.
+- Der Kamera-Scanner und die Schnellerfassung lesen jetzt alle EAN/UPC-Barcodes; die Medienart
+  wird automatisch erkannt oder vorab gewählt.
+- Statistik mit „Nach Medienart"; Massenbearbeitung kann die Medienart ändern, Einträge lassen
+  sich auch auf eine Medienart ziehen.
+- Bestehende Bibliotheken werden beim ersten Start automatisch umgestellt; alle bisherigen Einträge
+  bleiben Bücher.
+
 ## 0.5.1 – 2026-11-14
 
 - Neues App-Symbol: ein Phönix im Stil eines alten Kupferstichs auf Pink. In sehr kleinen

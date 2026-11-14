@@ -12,6 +12,8 @@ import { Cover } from './Cover'
 import { Stars } from './Stars'
 import { flattenLocations } from '../util'
 import { useI18n } from '../i18n'
+import { MEDIA_TYPES, type MediaType } from '@shared/media'
+import { statusLabel } from '../media'
 
 interface Props {
   books: Book[]
@@ -37,6 +39,7 @@ export function BulkPanel({ books, subjects, locations, onApply, onDelete, onClo
   const { t } = useI18n()
   const locs = useMemo(() => flattenLocations(locations), [locations])
   const [location, setLocation] = useState(UNCHANGED)
+  const [media, setMedia] = useState<MediaType | ''>('')
   const [subject, setSubject] = useState(UNCHANGED)
   const [status, setStatus] = useState<ReadStatus | ''>('')
   const [rating, setRating] = useState<number | null>(null)
@@ -45,6 +48,7 @@ export function BulkPanel({ books, subjects, locations, onApply, onDelete, onClo
   const [busy, setBusy] = useState(false)
 
   const patch: BulkPatch = {}
+  if (media) patch.mediaType = media
   if (location !== UNCHANGED) patch.locationId = location === CLEAR ? null : Number(location)
   if (subject !== UNCHANGED) patch.subjectId = subject === CLEAR ? null : Number(subject)
   if (status) patch.readStatus = status
@@ -65,6 +69,7 @@ export function BulkPanel({ books, subjects, locations, onApply, onDelete, onClo
     try {
       await onApply(patch)
       setLocation(UNCHANGED)
+      setMedia('')
       setSubject(UNCHANGED)
       setStatus('')
       setRating(null)
@@ -98,6 +103,21 @@ export function BulkPanel({ books, subjects, locations, onApply, onDelete, onClo
       <p className="bulk-hint">{t('bulk.hint')}</p>
 
       <div className="bulk-form">
+        <label className="field">
+          <span className="field-label">{t('field.mediaType')}</span>
+          <select
+            value={media}
+            onChange={(e) => setMedia(e.target.value as MediaType | '')}
+            className={media ? 'changed' : ''}
+          >
+            <option value="">{t('bulk.unchanged')}</option>
+            {MEDIA_TYPES.map((m) => (
+              <option key={m} value={m}>
+                {t(`media.${m}`)}
+              </option>
+            ))}
+          </select>
+        </label>
         <label className="field">
           <span className="field-label">{t('field.location')}</span>
           <select
@@ -141,7 +161,11 @@ export function BulkPanel({ books, subjects, locations, onApply, onDelete, onClo
             <option value="">{t('bulk.unchanged')}</option>
             {READ_STATUSES.map((s) => (
               <option key={s} value={s}>
-                {t(`status.${s}`)}
+                {statusLabel(
+                  t,
+                  s,
+                  new Set(books.map((b) => b.mediaType)).size === 1 ? books[0].mediaType : 'mixed'
+                )}
               </option>
             ))}
           </select>

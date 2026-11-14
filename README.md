@@ -1,7 +1,7 @@
 # BibCraft
 
-Desktop-Programm zur Katalogisierung privater Bibliotheksbestände – für Windows und macOS,
-auf Deutsch und Englisch.
+Desktop-Programm zur Katalogisierung privater Sammlungen – Bücher, Comics, Zeitschriften, Filme,
+Musik und Spiele – für Windows und macOS, auf Deutsch und Englisch.
 
 Schlank in der Bedienung, aber mit bibliothekarischer Tiefe: Signatur, Auflage, Reihe, Fachgebiete
 mit Systematik-Notation, Schlagworte, Exemplare und verschachtelte Standorte.
@@ -26,6 +26,11 @@ mit Systematik-Notation, Schlagworte, Exemplare und verschachtelte Standorte.
 - **Sprachen**: Deutsch und Englisch, umschaltbar unter *Ansicht › Sprache*. Beim ersten Start
   richtet sich die Sprache nach dem Betriebssystem.
 - Raster- und Listenansicht, ein- und ausblendbare Bereiche, Hell-/Dunkelmodus nach System.
+- **Alle Medien**: Bücher, Comics, Zeitschriften, Filme und Serien, Musik und Spiele in einer
+  Bibliothek, mit passenden Feldern je Art (Regie, Darsteller, Laufzeit, FSK, Titelliste,
+  Plattform …) und Filter nach Medienart. Barcodes von CDs/LPs erkennt BibCraft über MusicBrainz;
+  Filme, Spiele und Comics findet *Online suchen* bei Wikidata – mit eigenem TMDb-Schlüssel auch
+  bei TMDb.
 - **Mehrere Bibliotheken**: jede ein eigener Katalog mit eigenen Standorten, Fachgebieten und
   Büchern, z. B. privat, Verein und Ferienhaus. Umschalten über den Bibliotheksnamen in der
   Titelleiste; anlegen, öffnen, umbenennen und verwalten unter *Datei › Bibliothek*. Eine
@@ -41,6 +46,8 @@ mit Systematik-Notation, Schlagworte, Exemplare und verschachtelte Standorte.
 
 Tastenkürzel: `Strg/⌘ + N` neues Buch, `Strg/⌘ + F` Suche, `Strg/⌘ + A` alle auswählen,
 `Entf` Auswahl löschen, `Strg/⌘ + F1` Menüband, `Esc` Auswahl aufheben bzw. Dialog schließen.
+
+![Gemischte Medien](docs/medien.png)
 
 ![Bibliotheken verwalten](docs/bibliotheken.png)
 

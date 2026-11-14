@@ -16,6 +16,9 @@ import { UpdateNotice } from './components/UpdateNotice'
 import iconSmall from './assets/icon-small.png'
 import { LibraryManager, LibrarySwitcher, NewLibraryDialog, openLibraryDialog } from './components/Libraries'
 import { errMsg, flattenLocations } from './util'
+import { statusLabel, type StatusKind } from './media'
+import type { MediaType } from '@shared/media'
+import { SettingsDialog } from './components/Settings'
 import { I18nProvider, useI18n } from './i18n'
 
 type View = 'grid' | 'table'
@@ -28,6 +31,7 @@ type Dialog =
   | { kind: 'newLibrary' }
   | { kind: 'libraries' }
   | { kind: 'about' }
+  | { kind: 'settings' }
 
 interface Toast {
   text: string
@@ -86,6 +90,7 @@ function Shell({ info, onLang }: { info: AppInfo; onLang: (l: Lang) => void }) {
   const [stats, setStats] = useState<Stats | null>(null)
   const [version, setVersion] = useState(0)
   const [filter, setFilter] = useState<Filter>({ kind: 'all' })
+  const [mediaFilter, setMediaFilter] = useState<MediaType | null>(null)
   const [search, setSearch] = useState('')
   const [sort, setSort] = usePref<SortField>('sort', 'title')
   const [desc, setDesc] = usePref('desc', false)
@@ -120,8 +125,9 @@ function Shell({ info, onLang }: { info: AppInfo; onLang: (l: Lang) => void }) {
     if (filter.kind === 'subject') q.subjectId = filter.id
     if (filter.kind === 'location') q.locationId = filter.id
     if (filter.kind === 'favorites') q.minRating = 4
+    if (mediaFilter) q.mediaType = mediaFilter
     return q
-  }, [filter, search, sort, desc])
+  }, [filter, search, sort, desc, mediaFilter])
 
   const refresh = useCallback(async () => {
     const [b, s, l, st] = await Promise.all([
@@ -305,22 +311,32 @@ function Shell({ info, onLang }: { info: AppInfo; onLang: (l: Lang) => void }) {
     }
   }
 
-  const heading = (() => {
+  // Statusnamen passend zur Ansicht: „Gesehen" bei Filmen, „Fertig" bei gemischten Medien
+  const mixedMedia = Object.keys(stats?.byMedia ?? {}).some((m) => m !== 'book')
+  const statusKind: StatusKind = mediaFilter ?? (mixedMedia ? 'mixed' : 'book')
+  const mediaHeading = mediaFilter ? t(`mediaPlural.${mediaFilter}`) : ''
+
+  const baseHeading = (() => {
     switch (filter.kind) {
       case 'all':
-        return t('nav.all')
+        return mediaHeading || (mixedMedia ? t('nav.allMedia') : t('nav.all'))
       case 'favorites':
         return t('nav.favorites')
       case 'statistics':
         return t('nav.statistics')
       case 'status':
-        return t(`status.${filter.status}`)
+        return statusLabel(t, filter.status, statusKind)
       case 'subject':
         return subjectMap.get(filter.id)?.name ?? t('heading.subject')
       case 'location':
         return locationNodes.get(filter.id)?.path ?? t('heading.location')
     }
   })()
+
+  const heading =
+    mediaHeading && filter.kind !== 'all' && filter.kind !== 'statistics'
+      ? `${baseHeading} · ${mediaHeading}`
+      : baseHeading
 
   const emptyCatalog = stats?.total === 0
   const showSide = !showStats && detailPane && selection.length > 0
@@ -412,6 +428,8 @@ function Shell({ info, onLang }: { info: AppInfo; onLang: (l: Lang) => void }) {
         onManageLibraries={() => setDialog({ kind: 'libraries' })}
         onAbout={() => setDialog({ kind: 'about' })}
         onCheckUpdates={() => window.bibcraft.updates.check()}
+        onSettings={() => setDialog({ kind: 'settings' })}
+        statusKind={statusKind}
       />
 
       <div className={`workspace ${navPane ? 'with-nav' : ''} ${showSide ? 'with-detail' : ''}`}>
@@ -425,6 +443,21 @@ function Shell({ info, onLang }: { info: AppInfo; onLang: (l: Lang) => void }) {
             onManageSubjects={() => setDialog({ kind: 'subjects' })}
             onManageLocations={() => setDialog({ kind: 'locations' })}
             onDropBooks={onDropBooks}
+            mediaFilter={mediaFilter}
+            onMediaFilter={(m) => {
+              setMediaFilter(m)
+              setSelectedIds([])
+              if (filter.kind === 'statistics') setFilter({ kind: 'all' })
+            }}
+            onDropMedia={(m, ids) => {
+              const targets = ids.map((id) => byId.get(id)).filter((b): b is Book => !!b)
+              bulk(
+                targets,
+                { mediaType: m },
+                t('msg.moved', { n: targets.length, target: t(`mediaPlural.${m}`) })
+              )
+            }}
+            statusKind={statusKind}
           />
         )}
 
@@ -438,7 +471,15 @@ function Shell({ info, onLang }: { info: AppInfo; onLang: (l: Lang) => void }) {
             }}
           >
             {showStats ? (
-              <StatisticsView version={version} onNavigate={goTo} />
+              <StatisticsView
+                version={version}
+                onNavigate={goTo}
+                onMedia={(m) => {
+                  setMediaFilter(m)
+                  goTo({ kind: 'all' })
+                }}
+                statusKind={mixedMedia ? 'mixed' : 'book'}
+              />
             ) : (
               <>
                 <div className="content-head">
@@ -475,6 +516,7 @@ function Shell({ info, onLang }: { info: AppInfo; onLang: (l: Lang) => void }) {
                     onOpen={(b) => setDialog({ kind: 'edit', book: b })}
                     onDragStart={onDragStart}
                     subjects={subjectMap}
+                    statusKind={statusKind}
                   />
                 ) : (
                   <BookTable
@@ -484,6 +526,7 @@ function Shell({ info, onLang }: { info: AppInfo; onLang: (l: Lang) => void }) {
                     onOpen={(b) => setDialog({ kind: 'edit', book: b })}
                     onDragStart={onDragStart}
                     subjects={subjectMap}
+                    statusKind={statusKind}
                   />
                 )}
               </>
@@ -516,9 +559,9 @@ function Shell({ info, onLang }: { info: AppInfo; onLang: (l: Lang) => void }) {
       </div>
 
       <footer className="statusbar">
-        <span>{t('statusbar.books', { n: stats?.total ?? 0 })}</span>
+        <span>{t(mixedMedia ? 'statusbar.items' : 'statusbar.books', { n: stats?.total ?? 0 })}</span>
         <span>{t('statusbar.copies', { n: stats?.copies ?? 0 })}</span>
-        <span>{t('statusbar.read', { n: stats?.byStatus.read ?? 0 })}</span>
+        <span>{t(mixedMedia ? 'statusbar.done' : 'statusbar.read', { n: stats?.byStatus.read ?? 0 })}</span>
         <span className="spacer" />
         {selection.length > 1 && (
           <span className="statusbar-sel">{t('bulk.title', { n: selection.length })}</span>
@@ -551,6 +594,7 @@ function Shell({ info, onLang }: { info: AppInfo; onLang: (l: Lang) => void }) {
       {dialog.kind === 'edit' && (
         <BookEditor
           book={dialog.book}
+          defaultType={mediaFilter ?? 'book'}
           subjects={subjects}
           locations={locations}
           onClose={() => setDialog({ kind: 'none' })}
@@ -585,6 +629,7 @@ function Shell({ info, onLang }: { info: AppInfo; onLang: (l: Lang) => void }) {
       {dialog.kind === 'subjects' && (
         <SubjectManager subjects={subjects} onClose={() => setDialog({ kind: 'none' })} onChanged={refresh} />
       )}
+      {dialog.kind === 'settings' && <SettingsDialog onClose={() => setDialog({ kind: 'none' })} />}
       {dialog.kind === 'about' && (
         <AboutDialog version={info.version} onClose={() => setDialog({ kind: 'none' })} />
       )}

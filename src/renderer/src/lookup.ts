@@ -1,4 +1,4 @@
-import type { BookInput } from '@shared/types'
+import type { BookInput, IsbnResult, SearchHit } from '@shared/types'
 import { mergeResults } from '@shared/merge'
 
 export interface LookupOutcome {
@@ -7,9 +7,7 @@ export interface LookupOutcome {
   coverFile: string
 }
 
-/** ISBN abfragen, Treffer zusammenführen und das erste verfügbare Cover lokal speichern. */
-export async function fetchBookData(isbn: string): Promise<LookupOutcome> {
-  const results = await window.bibcraft.isbn.lookup(isbn)
+async function withCover(results: IsbnResult[]): Promise<LookupOutcome> {
   const data = mergeResults(results)
   let coverFile = ''
   for (const r of results) {
@@ -22,4 +20,17 @@ export async function fetchBookData(isbn: string): Promise<LookupOutcome> {
     }
   }
   return { data, sources: results.map((r) => r.source), coverFile }
+}
+
+/**
+ * ISBN, ISSN oder Barcode nachschlagen, Treffer zusammenführen und das erste
+ * verfügbare Cover lokal speichern. Die Medienart ergibt sich aus der Quelle.
+ */
+export async function fetchMediaData(code: string): Promise<LookupOutcome> {
+  return withCover(await window.bibcraft.media.lookupCode(code))
+}
+
+/** Vollständige Daten zu einem Treffer der Titelsuche laden */
+export async function fetchHitData(hit: SearchHit): Promise<LookupOutcome> {
+  return withCover([await window.bibcraft.media.details(hit)])
 }

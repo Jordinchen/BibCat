@@ -6,6 +6,7 @@ import {
   net,
   protocol,
   session,
+  safeStorage,
   shell,
   systemPreferences,
   type IpcMainInvokeEvent
@@ -15,7 +16,10 @@ import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, writeFileSyn
 import { basename, extname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { Catalog } from './db'
-import { lookupIsbn } from './lookup'
+import { lookupIsbn, lookupIssn } from './lookup'
+import { mediaDetails, musicByBarcode, searchMedia, tmdbCheckKey, Unreachable } from './media-lookup'
+import { classifyCode, issnFromEan, isMediaType } from '@shared/media'
+import { cleanIsbn } from '@shared/isbn'
 import { booksToCsv } from './csv'
 import { Updater } from './updater'
 import { DB_FILE, folderName, freeFolder, libraryDirFrom, Profile, samePath } from './libraries'
@@ -43,6 +47,31 @@ let libraryFallback: string | null = null
 let mainWindow: BrowserWindow | null = null
 let lang: Lang = 'de'
 const t = (...a: Parameters<ReturnType<typeof translator>>) => translator(lang)(...a)
+
+/** TMDb-Schlüssel aus dem Profil lesen (verschlüsselt, falls das System es anbietet) */
+function tmdbKey(): string | null {
+  const stored = profile.tmdbKey
+  if (!stored) return null
+  try {
+    if (stored.startsWith('enc:')) return safeStorage.decryptString(Buffer.from(stored.slice(4), 'base64'))
+    if (stored.startsWith('plain:')) return stored.slice(6)
+  } catch {
+    /* Schlüssel nicht lesbar (z. B. anderes Benutzerkonto) – wie „nicht eingetragen" behandeln */
+  }
+  return null
+}
+
+function storeTmdbKey(key: string): boolean {
+  if (!key) {
+    profile.setTmdbKey(undefined)
+    return true
+  }
+  const encrypted = safeStorage.isEncryptionAvailable()
+  profile.setTmdbKey(encrypted ? 'enc:' + safeStorage.encryptString(key).toString('base64') : 'plain:' + key)
+  return encrypted
+}
+
+const mediaCtx = () => ({ lang, tmdbKey: tmdbKey() })
 
 /** Ordner, in dem BibCraft neue Bibliotheken standardmäßig anlegt */
 const librariesRoot = () => join(app.getPath('userData'), 'Bibliotheken')
@@ -232,6 +261,49 @@ function registerIpc(): void {
   handle('locations:remove', (_e, id: number) => catalog.deleteLocation(id))
 
   handle('isbn:lookup', (_e, isbn: string) => lookupIsbn(isbn))
+
+  // ---------- Filme, Musik, Spiele, Zeitschriften ----------
+
+  handle('media:lookupCode', async (_e, raw: string) => {
+    const code = cleanIsbn(String(raw ?? ''))
+    switch (classifyCode(code)) {
+      case 'isbn':
+        return lookupIsbn(code)
+      case 'issn': {
+        const issn = code.length === 8 ? `${code.slice(0, 4)}-${code.slice(4)}` : issnFromEan(code)
+        const r = issn ? await lookupIssn(issn) : []
+        return r.map((x) => ({ ...x, data: { ...x.data, isbn: code } }))
+      }
+      case 'ean':
+        return musicByBarcode(code)
+      default:
+        throw new AppError('err.invalidCode')
+    }
+  })
+  handle('media:search', async (_e, q: string, type: unknown) => {
+    try {
+      return await searchMedia(String(q ?? ''), isMediaType(type) ? type : 'film', mediaCtx())
+    } catch (err) {
+      if (err instanceof Unreachable) throw new AppError('err.unreachable')
+      throw err
+    }
+  })
+  handle('media:details', async (_e, hit) => {
+    const r = await mediaDetails(hit, mediaCtx())
+    if (!r) throw new AppError('err.noDetails')
+    return r
+  })
+
+  handle('settings:tmdb', () => ({
+    configured: !!tmdbKey(),
+    encrypted: (profile.tmdbKey ?? '').startsWith('enc:')
+  }))
+  handle('settings:setTmdbKey', async (_e, raw: string) => {
+    const key = String(raw ?? '').trim()
+    storeTmdbKey(key)
+    if (!key) return { ok: true }
+    return (await tmdbCheckKey(key)) ? { ok: true } : { ok: false, message: t('settings.tmdbUnverified') }
+  })
 
   handle('covers:download', async (_e, url: string) => {
     if (!/^https:\/\//.test(url)) throw new AppError('err.httpsOnly')

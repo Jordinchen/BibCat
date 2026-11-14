@@ -2245,3 +2245,221 @@ html:not([data-platform='darwin']) .titlebar-end {
   border-radius: 16px;
   box-shadow: var(--shadow);
 }
+
+/* ---------- Medienarten ---------- */
+
+.media-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: -4px 0 18px;
+}
+.media-picker button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-2);
+  font-size: 13px;
+}
+.media-picker button svg {
+  color: var(--text-3);
+}
+.media-picker button:hover {
+  background: var(--surface-2);
+}
+.media-picker button.on {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--text);
+  font-weight: 600;
+}
+.media-picker button.on svg {
+  color: var(--accent-text);
+}
+
+/* Musik: quadratische Cover, im Raster unten bündig zu den Hochformaten */
+.cover.cover-square {
+  aspect-ratio: 1 / 1;
+}
+.grid-cover {
+  aspect-ratio: 2 / 3;
+  display: flex;
+  align-items: flex-end;
+}
+.grid-cover > .cover {
+  width: 100%;
+}
+.cover-placeholder {
+  position: relative;
+}
+.ph-icon {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  opacity: 0.75;
+}
+.cover-xs .ph-icon,
+.cover-xs.cover-placeholder .ph-icon {
+  display: none;
+}
+.cell-type {
+  margin-right: 6px;
+  vertical-align: -2px;
+  color: var(--text-3);
+}
+.hbar-icon {
+  display: inline-grid;
+  place-items: center;
+  color: var(--text-3);
+}
+.detail-type {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  margin-bottom: 4px;
+  font-size: 11.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-3);
+}
+.detail-tracks {
+  margin-bottom: 16px;
+  font-size: 13px;
+}
+.detail-tracks ol {
+  margin: 6px 0 0;
+  padding-left: 22px;
+  max-height: 260px;
+  overflow-y: auto;
+  color: var(--text-2);
+}
+.detail-tracks li {
+  padding: 1px 0;
+}
+
+/* Online-Suche */
+.search-meta {
+  font-size: 12px;
+  margin: 8px 0 12px;
+}
+.hit-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  max-height: 56vh;
+  overflow-y: auto;
+}
+.hit-list li {
+  border-bottom: 1px solid var(--border);
+}
+.hit-list li:last-child {
+  border-bottom: none;
+}
+.hit {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  text-align: left;
+}
+.hit:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+.hit-img {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  aspect-ratio: 2 / 3;
+  flex-shrink: 0;
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--surface-2);
+  color: var(--text-3);
+}
+.hit-img.square {
+  aspect-ratio: 1 / 1;
+}
+.hit-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.hit-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+}
+.hit-text strong {
+  font-family: var(--serif);
+  font-size: 14px;
+}
+.hit-text .muted {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hit-source {
+  font-size: 11px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text-2);
+  flex-shrink: 0;
+}
+
+/* Einstellungen */
+.settings-h {
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+.settings-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 14px;
+  background: var(--surface-2);
+  border-radius: var(--radius);
+}
+.settings-block .field-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.settings-state {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ok);
+}
+.settings-help {
+  margin: 0;
+  font-size: 12.5px;
+}
+.settings-link {
+  align-self: flex-start;
+  color: inherit;
+  text-decoration: none;
+}
+.about-sources {
+  font-size: 13px;
+  color: var(--text-2);
+  margin: 4px 0;
+}
+.about-tmdb {
+  font-size: 12px;
+  margin: 0;
+}

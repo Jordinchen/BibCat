@@ -1,9 +1,13 @@
+import type { MediaType } from './media'
+
 export type ReadStatus = 'unread' | 'reading' | 'read' | 'abandoned'
 
 export const READ_STATUSES: ReadStatus[] = ['unread', 'reading', 'read', 'abandoned']
 
 export interface Book {
   id: number
+  /** Buch, Comic, Zeitschrift, Film/Serie, Musik oder Spiel */
+  mediaType: MediaType
   title: string
   subtitle: string
   /** Mehrere Personen mit Semikolon getrennt, je "Nachname, Vorname" */
@@ -17,7 +21,16 @@ export interface Book {
   isbn: string
   language: string
   pages: number | null
+  /** Laufzeit bzw. Spieldauer in Minuten (Filme, Musik, Spiele) */
+  duration: number | null
+  /** Einband bzw. Format: DVD, Blu-ray, CD, LP, Plattform … */
   binding: string
+  /** Altersfreigabe: FSK, USK, PEGI */
+  ageRating: string
+  /** Titelliste (Musik), eine Zeile je Titel */
+  tracks: string
+  /** Spieleranzahl (Spiele), z. B. „2–4" */
+  players: string
   series: string
   seriesNumber: string
   subjectId: number | null
@@ -41,6 +54,7 @@ export interface Book {
 export type BookInput = Omit<Book, 'id' | 'createdAt' | 'updatedAt'>
 
 export const EMPTY_BOOK: BookInput = {
+  mediaType: 'book',
   title: '',
   subtitle: '',
   authors: '',
@@ -52,7 +66,11 @@ export const EMPTY_BOOK: BookInput = {
   isbn: '',
   language: '',
   pages: null,
+  duration: null,
   binding: '',
+  ageRating: '',
+  tracks: '',
+  players: '',
   series: '',
   seriesNumber: '',
   subjectId: null,
@@ -90,6 +108,7 @@ export type SortField = 'title' | 'authors' | 'year' | 'createdAt' | 'rating' | 
 
 export interface BookQuery {
   text?: string
+  mediaType?: MediaType | null
   subjectId?: number | null
   /** Schließt untergeordnete Standorte ein */
   locationId?: number | null
@@ -100,6 +119,8 @@ export interface BookQuery {
 }
 
 export interface Stats {
+  /** Anzahl je Medienart (nur Arten mit mindestens einem Eintrag) */
+  byMedia: Partial<Record<MediaType, number>>
   total: number
   copies: number
   byStatus: Record<ReadStatus, number>
@@ -107,6 +128,7 @@ export interface Stats {
 
 /** Sammeländerung für mehrere Bücher; nicht gesetzte Felder bleiben unverändert */
 export interface BulkPatch {
+  mediaType?: MediaType
   locationId?: number | null
   subjectId?: number | null
   readStatus?: ReadStatus
@@ -146,6 +168,20 @@ export interface Statistics {
   byLanguage: CountRow[]
   /** Anzahl Bücher mit 1–5 Sternen (Index 0 = 1 Stern) */
   ratings: number[]
+  byMedia: CountRow[]
+}
+
+/** Treffer einer Titelsuche (Film, Musik, Spiel) */
+export interface SearchHit {
+  source: 'tmdb' | 'wikidata' | 'musicbrainz'
+  /** ID in der jeweiligen Quelle, bei TMDb mit Art: „movie:603" bzw. „tv:1399" */
+  id: string
+  title: string
+  year: string
+  /** Kurzbeschreibung: Regie, Künstler, Plattform … */
+  detail: string
+  imageUrl?: string
+  mediaType: MediaType
 }
 
 /** Ergebnis einer ISBN-Abfrage, bereits auf unsere Felder abgebildet */
@@ -252,6 +288,19 @@ export interface BibCraftApi {
   }
   isbn: {
     lookup(isbn: string): Promise<IsbnResult[]>
+  }
+  media: {
+    /** Code (EAN/UPC/ISSN) nachschlagen – derzeit Musik über MusicBrainz */
+    lookupCode(code: string): Promise<IsbnResult[]>
+    /** Titelsuche für Filme, Serien, Musik und Spiele */
+    search(query: string, type: MediaType): Promise<SearchHit[]>
+    /** Vollständige Daten zu einem Suchtreffer */
+    details(hit: SearchHit): Promise<IsbnResult>
+  }
+  settings: {
+    tmdb(): Promise<{ configured: boolean; encrypted: boolean }>
+    /** Leerer Schlüssel entfernt ihn; gibt bei Erfolg die Prüfung zurück */
+    setTmdbKey(key: string): Promise<{ ok: boolean; message?: string }>
   }
   covers: {
     /** Lädt ein Cover herunter und gibt den gespeicherten Dateinamen zurück */
