@@ -12,6 +12,7 @@ import { QuickCapture } from './components/QuickCapture'
 import { StatisticsView } from './components/StatisticsView'
 import { LocationManager, SubjectManager } from './components/Managers'
 import { AboutDialog } from './components/About'
+import { UpdateNotice } from './components/UpdateNotice'
 import { LibraryManager, LibrarySwitcher, NewLibraryDialog, openLibraryDialog } from './components/Libraries'
 import { errMsg, flattenLocations } from './util'
 import { I18nProvider, useI18n } from './i18n'
@@ -409,6 +410,7 @@ function Shell({ info, onLang }: { info: AppInfo; onLang: (l: Lang) => void }) {
         onOpenLibrary={openLibrary}
         onManageLibraries={() => setDialog({ kind: 'libraries' })}
         onAbout={() => setDialog({ kind: 'about' })}
+        onCheckUpdates={() => window.bibcraft.updates.check()}
       />
 
       <div className={`workspace ${navPane ? 'with-nav' : ''} ${showSide ? 'with-detail' : ''}`}>
@@ -600,6 +602,7 @@ function Shell({ info, onLang }: { info: AppInfo; onLang: (l: Lang) => void }) {
         />
       )}
 
+      <UpdateNotice />
       {toast && (
         <div className="toast" role="status">
           <span className="toast-text">{toast.text}</span>

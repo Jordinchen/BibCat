@@ -17,6 +17,7 @@ import { pathToFileURL } from 'node:url'
 import { Catalog } from './db'
 import { lookupIsbn } from './lookup'
 import { booksToCsv } from './csv'
+import { Updater } from './updater'
 import { DB_FILE, folderName, freeFolder, libraryDirFrom, Profile, samePath } from './libraries'
 import { AppError, isLang, langFromLocale, translator, type Lang } from '@shared/i18n'
 import type { LibraryInfo } from '@shared/types'
@@ -32,6 +33,7 @@ if (process.env.BIBCRAFT_PROFILE_DIR) app.setPath('userData', process.env.BIBCRA
 const TITLEBAR = { color: '#F58092', symbolColor: '#3b0a17', height: 40 }
 
 let profile: Profile
+let updater: Updater
 let catalog: Catalog
 let coverDir: string
 let dataDirPath: string
@@ -136,6 +138,14 @@ function registerIpc(): void {
     lang = l
     profile.setLanguage(l)
   })
+
+  // ---------- Updates ----------
+
+  handle('updates:state', () => updater.current)
+  handle('updates:check', () => updater.check(true))
+  handle('updates:install', () => updater.install())
+  handle('updates:openReleases', () => updater.openReleases())
+  handle('updates:setAuto', (_e, on: boolean) => updater.setAuto(!!on))
 
   // ---------- Bibliotheken ----------
 
@@ -372,8 +382,10 @@ if (!app.requestSingleInstanceLock()) {
       callback(false)
     })
 
+    updater = new Updater(profile)
     registerIpc()
     createWindow()
+    updater.start()
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow()

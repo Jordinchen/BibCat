@@ -12,6 +12,7 @@ import {
   FileSpreadsheet,
   FolderOpen,
   Info,
+  RefreshCw,
   FolderPlus,
   FolderSearch,
   LibraryBig,
@@ -72,6 +73,7 @@ export interface RibbonProps {
   onOpenLibrary: () => void
   onManageLibraries: () => void
   onAbout: () => void
+  onCheckUpdates: () => void
 }
 
 function load<T>(key: string, fallback: T): T {
@@ -222,6 +224,7 @@ export function Ribbon(p: RibbonProps) {
                 <Big icon={FolderSearch} label={t('cmd.openFolder')} onClick={p.onOpenFolder} />
               </Group>
               <Group label={t('group.info')}>
+                <Big icon={RefreshCw} label={t('cmd.checkUpdates')} onClick={p.onCheckUpdates} />
                 <Big icon={Info} label={t('cmd.about')} onClick={p.onAbout} />
               </Group>
             </>

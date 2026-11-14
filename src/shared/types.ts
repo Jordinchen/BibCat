@@ -168,6 +168,26 @@ export interface AppInfo {
   libraryFallback: string | null
 }
 
+export type UpdateStatus = 'idle' | 'checking' | 'none' | 'available' | 'downloading' | 'ready' | 'error'
+
+export interface UpdateState {
+  status: UpdateStatus
+  /** Version des gefundenen Updates */
+  version?: string
+  /** Fortschritt beim Herunterladen in Prozent */
+  percent?: number
+  /** Fehlermeldung (nur bei status = 'error') */
+  error?: string
+  /** true: BibCraft lädt und installiert selbst (Windows); false: nur Hinweis mit Download-Link */
+  canInstall: boolean
+  /** true, wenn die Prüfung vom Benutzer angestoßen wurde (dann auch „aktuell" und Fehler melden) */
+  manual: boolean
+  /** Automatische Suche beim Start eingeschaltet */
+  auto: boolean
+  /** Seite mit allen Versionen und Neuerungen */
+  releasesUrl: string
+}
+
 export interface LibraryInfo {
   path: string
   name: string
@@ -180,6 +200,17 @@ export interface BibCraftApi {
   app: {
     info(): Promise<AppInfo>
     setLanguage(lang: import('./i18n').Lang): Promise<void>
+  }
+  updates: {
+    state(): Promise<UpdateState>
+    check(): Promise<void>
+    /** BibCraft beenden und das heruntergeladene Update installieren */
+    install(): Promise<void>
+    /** Download-Seite im Browser öffnen */
+    openReleases(): Promise<void>
+    setAuto(on: boolean): Promise<void>
+    /** Meldet jede Statusänderung; gibt eine Abmeldefunktion zurück */
+    onState(cb: (s: UpdateState) => void): () => void
   }
   libraries: {
     list(): Promise<LibraryInfo[]>

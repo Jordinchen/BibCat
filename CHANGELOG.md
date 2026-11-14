@@ -1,0 +1,47 @@
+# Änderungen
+
+Alle nennenswerten Änderungen an BibCraft. Die Versionsnummern folgen
+[Semantic Versioning](https://semver.org/lang/de/).
+
+## 0.5.0 – 2026-11-14
+
+**Automatische Updates**
+
+- BibCraft sucht beim Start bei GitHub nach neuen Versionen. Unter Windows wird ein Update im
+  Hintergrund geladen; danach fragt BibCraft „Jetzt neu starten?" – oder installiert es beim
+  nächsten Beenden.
+- Unter macOS erscheint vorerst ein Hinweis mit Download-Link (automatisches Installieren
+  setzt eine Signierung voraus).
+- Die automatische Suche lässt sich unter *Datei › Über BibCraft* abschalten. Es wird nur die
+  neueste Versionsnummer abgefragt, über dich oder deine Bibliotheken wird nichts übertragen.
+- Neu unter *Datei › Info*: „Nach Updates suchen".
+
+**Sonstiges**
+
+- Rechteinhaber im Lizenzhinweis: David Rosa.
+- Installationsdateien heißen jetzt `BibCraft-Setup-<Version>.exe` bzw. `BibCraft-<Version>-universal.dmg`.
+
+## 0.4.1 – 2026-11-14
+
+- BibCraft ist freie Software unter der GNU GPL, Version 3 oder später.
+- Neu: *Datei › Über BibCraft* mit Lizenz, Haftungsausschluss, Link zum Quellcode und den
+  Lizenzen der verwendeten Bibliotheken.
+
+## 0.4.0 – 2026-11-14
+
+- Mehrere Bibliotheken, jede als eigener Katalog mit eigenen Standorten, Fachgebieten und Büchern.
+  Umschalten über den Bibliotheksnamen in der Titelleiste.
+
+## 0.3.0 – 2026-11-14
+
+- Massenbearbeitung mit Mehrfachauswahl, Ziehen und Ablegen und „Rückgängig".
+- Statistik mit Kennzahlen und Diagrammen.
+
+## 0.2.0 – 2026-11-14
+
+- Neuer Name BibCraft, Menüband im Office-Stil, Deutsch und Englisch, Akzentfarbe Pink.
+
+## 0.1.0 – 2026-11-14
+
+- Erste Version (BibCat): Katalog mit ISBN-Abfrage, Barcode-Scan, Standorten, Fachgebieten,
+  Bewertung und Lesestatus.

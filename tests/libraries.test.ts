@@ -28,6 +28,13 @@ describe('Profil mit Bibliotheksliste', () => {
     expect(new Profile(file).libraries).toHaveLength(1)
   })
 
+  it('merkt sich, ob automatisch nach Updates gesucht wird (Standard: ja)', () => {
+    const file = join(tmp(), 'profile.json')
+    expect(new Profile(file).autoUpdate).toBe(true)
+    new Profile(file).setAutoUpdate(false)
+    expect(new Profile(file).autoUpdate).toBe(false)
+  })
+
   it('übersteht eine beschädigte Profildatei', () => {
     const file = join(tmp(), 'profile.json')
     writeFileSync(file, '{ kaputt')

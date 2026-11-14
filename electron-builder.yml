@@ -10,11 +10,19 @@ files:
   - package.json
   - LICENSE
 asar: true
+# Updates werden über GitHub Releases verteilt (siehe .github/workflows/build.yml)
+publish:
+  provider: github
+  owner: Jordinchen
+  repo: BibCat
+  releaseType: release
 win:
   target:
     - target: nsis
       arch: [x64]
 nsis:
+  # Dateinamen ohne Leerzeichen, damit sie zu latest.yml passen
+  artifactName: BibCraft-Setup-${version}.${ext}
   oneClick: false
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
@@ -23,11 +31,16 @@ nsis:
   license: LICENSE
 mac:
   category: public.app-category.reference
+  artifactName: BibCraft-${version}-${arch}.${ext}
   target:
     - target: dmg
+      arch: [universal]
+    # Das ZIP wird nur für die Update-Prüfung (latest-mac.yml) gebraucht
+    - target: zip
       arch: [universal]
   extendInfo:
     NSCameraUsageDescription: BibCraft uses the camera to scan ISBN barcodes. / BibCraft nutzt die Kamera, um ISBN-Barcodes zu scannen.
 linux:
   target: [AppImage]
+  artifactName: BibCraft-${version}-${arch}.${ext}
   category: Office

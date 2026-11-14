@@ -1,11 +1,16 @@
 name: Build
 
+# Jeder Push baut und testet. Eine Versionsmarke (z. B. v0.5.0) veröffentlicht zusätzlich
+# ein GitHub-Release, von dem die installierten BibCraft-Versionen ihre Updates holen.
 on:
   push:
     branches: ['**']
     tags: ['v*']
   pull_request:
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   test:
@@ -49,4 +54,34 @@ jobs:
           path: |
             dist/*.exe
             dist/*.dmg
+            dist/*.zip
+            dist/*.blockmap
+            dist/latest*.yml
           if-no-files-found: error
+
+  release:
+    needs: package
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Versionsmarke und package.json vergleichen
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Marke $GITHUB_REF_NAME passt nicht zu package.json ($version)"
+            exit 1
+          fi
+          node scripts/changelog-section.mjs "$version" > release-notes.md
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: BibCraft ${{ github.ref_name }}
+          body_path: release-notes.md
+          files: artifacts/*
+          fail_on_unmatched_files: true

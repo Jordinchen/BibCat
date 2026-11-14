@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { BibCraftApi } from '@shared/types'
+import type { BibCraftApi, UpdateState } from '@shared/types'
 
 const call =
   (channel: string) =>
@@ -8,6 +8,18 @@ const call =
 
 const api: BibCraftApi = {
   app: { info: call('app:info'), setLanguage: call('app:setLanguage') },
+  updates: {
+    state: call('updates:state'),
+    check: call('updates:check'),
+    install: call('updates:install'),
+    openReleases: call('updates:openReleases'),
+    setAuto: call('updates:setAuto'),
+    onState: (cb: (s: UpdateState) => void) => {
+      const listener = (_e: unknown, s: UpdateState) => cb(s)
+      ipcRenderer.on('updates:state', listener)
+      return () => ipcRenderer.removeListener('updates:state', listener)
+    }
+  },
   libraries: {
     list: call('libraries:list'),
     create: call('libraries:create'),

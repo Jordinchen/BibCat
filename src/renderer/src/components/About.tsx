@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { ExternalLink } from 'lucide-react'
+import { ExternalLink, RefreshCw } from 'lucide-react'
+import { describeUpdate, useUpdateState } from '../updates'
 import licenseText from '../../../../LICENSE?raw'
 import thirdParty from '../third-party.json'
 import { Modal } from './Modal'
@@ -12,6 +13,7 @@ const GPL_URL = 'https://www.gnu.org/licenses/gpl-3.0.html'
 export function AboutDialog({ version, onClose }: { version: string; onClose: () => void }) {
   const { t } = useI18n()
   const [showLicense, setShowLicense] = useState(false)
+  const update = useUpdateState()
 
   return (
     <Modal title={t('about.title')} onClose={onClose}>
@@ -46,6 +48,40 @@ export function AboutDialog({ version, onClose }: { version: string; onClose: ()
           <pre className="license-text">{licenseText}</pre>
         </>
       )}
+
+      <h3 className="about-section">{t('updates.title')}</h3>
+      <div className="about-updates">
+        <div className="row gap-sm">
+          <span className="grow">
+            {t('updates.installed', { v: version })}{' '}
+            {update && update.status !== 'idle' && <strong>{describeUpdate(update, t)}</strong>}
+          </span>
+          <button
+            className="btn btn-sm"
+            onClick={() => window.bibcraft.updates.check()}
+            disabled={update?.status === 'checking' || update?.status === 'downloading'}
+          >
+            <RefreshCw size={14} className={update?.status === 'checking' ? 'spin' : ''} />{' '}
+            {t('updates.check')}
+          </button>
+          {update?.status === 'ready' && (
+            <button className="btn btn-sm btn-primary" onClick={() => window.bibcraft.updates.install()}>
+              {t('updates.restart')}
+            </button>
+          )}
+        </div>
+        <label className="check-row">
+          <input
+            type="checkbox"
+            checked={update?.auto ?? true}
+            onChange={(e) => window.bibcraft.updates.setAuto(e.target.checked)}
+          />
+          <span>
+            {t('updates.auto')}
+            <span className="muted check-hint">{t('updates.autoHint')}</span>
+          </span>
+        </label>
+      </div>
 
       <h3 className="about-section">{t('about.thirdParty')}</h3>
       <p className="muted">{t('about.thirdPartyIntro')}</p>

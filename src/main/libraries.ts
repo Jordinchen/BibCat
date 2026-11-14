@@ -14,6 +14,8 @@ interface ProfileData {
   current: string | null
   libraries: LibraryEntry[]
   language?: Lang
+  /** Beim Start automatisch nach Updates suchen (Standard: ja) */
+  autoUpdate?: boolean
 }
 
 /** Ordnerpfade vergleichbar machen (Windows/macOS unterscheiden Groß-/Kleinschreibung nicht) */
@@ -68,6 +70,7 @@ export class Profile {
       }
       if (typeof raw.current === 'string') this.data.current = raw.current
       if (raw.language === 'de' || raw.language === 'en') this.data.language = raw.language
+      if (typeof raw.autoUpdate === 'boolean') this.data.autoUpdate = raw.autoUpdate
     } catch {
       /* erste Nutzung oder beschädigte Datei: mit leerem Profil beginnen */
     }
@@ -91,6 +94,15 @@ export class Profile {
 
   get language(): Lang | undefined {
     return this.data.language
+  }
+
+  get autoUpdate(): boolean {
+    return this.data.autoUpdate ?? true
+  }
+
+  setAutoUpdate(on: boolean): void {
+    this.data.autoUpdate = on
+    this.save()
   }
 
   setLanguage(lang: Lang): void {

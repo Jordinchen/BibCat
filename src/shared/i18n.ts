@@ -176,7 +176,7 @@ const de = {
   'about.title': 'Über BibCraft',
   'about.version': 'Version {v}',
   'about.tagline': 'Katalogisierung privater Bibliotheken',
-  'about.copyright': 'Copyright © 2026 Die BibCraft-Mitwirkenden',
+  'about.copyright': 'Copyright © 2026 David Rosa',
   'about.free':
     'BibCraft ist freie Software: Du kannst es unter den Bedingungen der GNU General Public License, wie von der Free Software Foundation veröffentlicht, weitergeben und/oder verändern, entweder gemäß Version 3 der Lizenz oder (nach deiner Wahl) jeder späteren Version.',
   'about.warranty':
@@ -189,6 +189,24 @@ const de = {
   'about.thirdParty': 'Verwendete freie Software',
   'about.thirdPartyIntro':
     'BibCraft baut auf diesen Bibliotheken auf. Für sie gelten ihre jeweiligen Lizenzen:',
+  'cmd.checkUpdates': 'Nach Updates\nsuchen',
+  'updates.title': 'Updates',
+  'updates.installed': 'Installiert ist Version {v}.',
+  'updates.checking': 'Suche nach Updates …',
+  'updates.none': 'BibCraft ist auf dem neuesten Stand.',
+  'updates.available': 'BibCraft {v} ist verfügbar.',
+  'updates.downloading': 'BibCraft {v} wird geladen … {p} %',
+  'updates.ready': 'BibCraft {v} ist bereit.',
+  'updates.readyHint': 'Wird sonst beim nächsten Beenden installiert.',
+  'updates.error': 'Die Suche nach Updates hat nicht geklappt. Besteht eine Internetverbindung?',
+  'updates.restart': 'Jetzt neu starten',
+  'updates.later': 'Später',
+  'updates.download': 'Herunterladen',
+  'updates.whatsNew': 'Was ist neu?',
+  'updates.check': 'Jetzt suchen',
+  'updates.auto': 'Beim Start automatisch nach Updates suchen',
+  'updates.autoHint':
+    'Dabei fragt BibCraft nur bei GitHub die neueste Version ab. Über dich oder deine Bibliotheken wird nichts übertragen.',
   'heading.subject': 'Fachgebiet',
   'heading.location': 'Standort',
 
@@ -539,7 +557,7 @@ const en: Record<TKey, string> = {
   'about.title': 'About BibCraft',
   'about.version': 'Version {v}',
   'about.tagline': 'Cataloguing for private libraries',
-  'about.copyright': 'Copyright © 2026 The BibCraft contributors',
+  'about.copyright': 'Copyright © 2026 David Rosa',
   'about.free':
     'BibCraft is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.',
   'about.warranty':
@@ -551,6 +569,24 @@ const en: Record<TKey, string> = {
   'about.licenseNote': 'The English original is the legally binding text.',
   'about.thirdParty': 'Free software used',
   'about.thirdPartyIntro': 'BibCraft is built on these libraries. Their respective licenses apply to them:',
+  'cmd.checkUpdates': 'Check for\nupdates',
+  'updates.title': 'Updates',
+  'updates.installed': 'Version {v} is installed.',
+  'updates.checking': 'Checking for updates …',
+  'updates.none': 'BibCraft is up to date.',
+  'updates.available': 'BibCraft {v} is available.',
+  'updates.downloading': 'Downloading BibCraft {v} … {p} %',
+  'updates.ready': 'BibCraft {v} is ready.',
+  'updates.readyHint': 'Otherwise it will be installed the next time you quit.',
+  'updates.error': 'Checking for updates did not work. Are you connected to the internet?',
+  'updates.restart': 'Restart now',
+  'updates.later': 'Later',
+  'updates.download': 'Download',
+  'updates.whatsNew': "What's new?",
+  'updates.check': 'Check now',
+  'updates.auto': 'Check for updates automatically on start',
+  'updates.autoHint':
+    'BibCraft only asks GitHub for the latest version. Nothing about you or your libraries is sent.',
   'heading.subject': 'Subject',
   'heading.location': 'Location',
 

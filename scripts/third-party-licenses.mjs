@@ -9,7 +9,7 @@ const root = join(dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z
 const require = createRequire(join(root, 'package.json'))
 
 // Direkt in die Oberfläche gebündelte Pakete; ihre Abhängigkeiten werden mit eingesammelt
-const ROOTS = ['react', 'react-dom', '@zxing/browser', '@zxing/library', 'lucide-react']
+const ROOTS = ['react', 'react-dom', '@zxing/browser', '@zxing/library', 'lucide-react', 'electron-updater']
 
 function pkgDir(name, from) {
   let dir = from
@@ -30,6 +30,29 @@ function licenseText(dir) {
   return text
 }
 
+// Standardtext für Pakete, die ihre MIT-Lizenz nur in package.json angeben
+const MIT = (holder) => `MIT License
+
+Copyright (c) ${holder}
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.`
+
 const seen = new Map()
 function visit(name, from) {
   const dir = pkgDir(name, from)
@@ -44,7 +67,11 @@ function visit(name, from) {
     license,
     homepage:
       pkg.homepage ?? (typeof pkg.repository === 'string' ? pkg.repository : pkg.repository?.url) ?? '',
-    text: licenseText(dir)
+    text:
+      licenseText(dir) ||
+      (license === 'MIT'
+        ? MIT(typeof pkg.author === 'string' ? pkg.author : (pkg.author?.name ?? `the ${pkg.name} authors`))
+        : '')
   })
   for (const dep of Object.keys(pkg.dependencies ?? {})) visit(dep, dir)
 }

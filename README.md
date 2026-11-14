@@ -88,21 +88,31 @@ npm test           # Tests
 npm run typecheck
 ```
 
-## Installer bauen
+## Herunterladen und Updates
 
-Auf dem jeweiligen Betriebssystem:
+Fertige Installer gibt es unter **[Releases](https://github.com/Jordinchen/BibCat/releases)**.
+Installiertes BibCraft sucht beim Start selbst nach neuen Versionen (abschaltbar unter
+*Datei › Über BibCraft*); unter Windows wird das Update geladen und mit einem Klick installiert.
+Was sich geändert hat, steht in [`CHANGELOG.md`](CHANGELOG.md).
+
+**Hinweis zur Signierung:** Die Installer sind derzeit unsigniert. Windows zeigt beim ersten Start
+eine SmartScreen-Warnung („Weitere Informationen" → „Trotzdem ausführen"); unter macOS die App beim
+ersten Mal per Rechtsklick → „Öffnen" starten. Unter macOS installieren sich Updates erst mit
+Signierung automatisch, bis dahin weist BibCraft auf neue Versionen hin.
+
+## Neue Version veröffentlichen
+
+1. Version in `package.json` erhöhen und einen Abschnitt in `CHANGELOG.md` ergänzen.
+2. Commit pushen und eine Versionsmarke setzen, z. B. `git tag v0.5.1 && git push origin v0.5.1`.
+3. Der Workflow `.github/workflows/build.yml` baut Windows und macOS und veröffentlicht ein
+   Release mit den Installern, den Update-Beschreibungen (`latest*.yml`) und der Änderungsliste.
+
+Lokal bauen (auf dem jeweiligen Betriebssystem):
 
 ```bash
-npm run dist:win   # erzeugt dist/BibCraft Setup x.y.z.exe
+npm run dist:win   # erzeugt dist/BibCraft-Setup-x.y.z.exe
 npm run dist:mac   # erzeugt dist/BibCraft-x.y.z-universal.dmg
 ```
-
-Alternativ baut der GitHub-Actions-Workflow (`.github/workflows/build.yml`) bei jedem Push beide
-Installer; sie liegen dann als Artefakte am Workflow-Lauf.
-
-**Hinweis zur Signierung:** Die Installer sind unsigniert. Windows zeigt beim ersten Start eine
-SmartScreen-Warnung („Weitere Informationen" → „Trotzdem ausführen"); unter macOS die App beim
-ersten Mal per Rechtsklick → „Öffnen" starten.
 
 ## Projektstruktur
 
@@ -121,7 +131,7 @@ Wahl) jeder späteren Version** (`GPL-3.0-or-later`). Den vollständigen Text en
 [`LICENSE`](LICENSE); im Programm steht er unter *Datei › Über BibCraft*.
 
     BibCraft – Katalogisierung privater Bibliotheken
-    Copyright (C) 2026 Die BibCraft-Mitwirkenden
+    Copyright (C) 2026 David Rosa
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
