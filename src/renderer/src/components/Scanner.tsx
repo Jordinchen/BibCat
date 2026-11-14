@@ -1,0 +1,100 @@
+import { useEffect, useRef, useState } from 'react'
+import { BrowserMultiFormatReader, type IScannerControls } from '@zxing/browser'
+import { BarcodeFormat, DecodeHintType } from '@zxing/library'
+import { isValidIsbn13 } from '@shared/isbn'
+
+interface Props {
+  /** Wird mit einer gültigen ISBN-13 aufgerufen */
+  onIsbn: (isbn: string) => void
+  /** Scanner läuft weiter (Schnellerfassung) statt nach dem ersten Treffer zu stoppen */
+  continuous?: boolean
+}
+
+/**
+ * Liest EAN-13-Barcodes über die Kamera. Akzeptiert nur Codes mit Präfix 978/979
+ * (Bookland), damit Preis- oder Artikel-Barcodes ignoriert werden.
+ */
+export function Scanner({ onIsbn, continuous }: Props) {
+  const video = useRef<HTMLVideoElement>(null)
+  const [devices, setDevices] = useState<MediaDeviceInfo[]>([])
+  const [deviceId, setDeviceId] = useState<string>('')
+  const [error, setError] = useState('')
+  const [flash, setFlash] = useState(false)
+  const last = useRef({ code: '', at: 0 })
+  const cb = useRef(onIsbn)
+  cb.current = onIsbn
+
+  useEffect(() => {
+    BrowserMultiFormatReader.listVideoInputDevices()
+      .then((d) => {
+        setDevices(d)
+        if (!d.length) setError('Keine Kamera gefunden.')
+      })
+      .catch(() => setError('Kamerazugriff nicht möglich.'))
+  }, [])
+
+  useEffect(() => {
+    if (!video.current) return
+    const hints = new Map()
+    hints.set(DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.EAN_13])
+    hints.set(DecodeHintType.TRY_HARDER, true)
+    const reader = new BrowserMultiFormatReader(hints, { delayBetweenScanAttempts: 120 })
+    let controls: IScannerControls | undefined
+    let cancelled = false
+
+    reader
+      .decodeFromVideoDevice(deviceId || undefined, video.current, (result, _err, ctl) => {
+        if (!result) return
+        const code = result.getText()
+        if (!/^97[89]\d{10}$/.test(code) || !isValidIsbn13(code)) return
+        const now = Date.now()
+        // Gleichen Code nicht mehrfach hintereinander melden
+        if (code === last.current.code && now - last.current.at < 3000) return
+        last.current = { code, at: now }
+        setFlash(true)
+        setTimeout(() => setFlash(false), 350)
+        cb.current(code)
+        if (!continuous) ctl.stop()
+      })
+      .then((c) => {
+        if (cancelled) c.stop()
+        else controls = c
+        setError('')
+      })
+      .catch((e: Error) => {
+        setError(
+          e?.name === 'NotAllowedError'
+            ? 'Kamerazugriff wurde verweigert. Bitte in den Systemeinstellungen erlauben.'
+            : 'Kamera konnte nicht gestartet werden.'
+        )
+      })
+
+    return () => {
+      cancelled = true
+      controls?.stop()
+    }
+  }, [deviceId, continuous])
+
+  return (
+    <div className="scanner">
+      <div className={`scanner-view ${flash ? 'flash' : ''}`}>
+        <video ref={video} muted playsInline />
+        <div className="scanner-frame" />
+        {error && <div className="scanner-error">{error}</div>}
+      </div>
+      <div className="scanner-bar">
+        <span className="muted">Barcode auf der Buchrückseite in den Rahmen halten.</span>
+        {devices.length > 1 && (
+          <select value={deviceId} onChange={(e) => setDeviceId(e.target.value)}>
+            <option value="">Standardkamera</option>
+            {devices.map((d) => (
+              <option key={d.deviceId} value={d.deviceId}>
+                {d.label || 'Kamera'}
+              </option>
+            ))}
+          </select>
+        )}
+      </div>
+    </div>
+  )
+}

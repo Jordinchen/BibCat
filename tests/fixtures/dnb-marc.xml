@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<searchRetrieveResponse xmlns="http://www.loc.gov/zing/srw/">
+  <version>1.1</version>
+  <numberOfRecords>1</numberOfRecords>
+  <records><record><recordSchema>MARC21-xml</recordSchema><recordPacking>xml</recordPacking><recordData>
+  <record xmlns="http://www.loc.gov/MARC21/slim" type="Bibliographic">
+    <leader>00000nam a22000008c 4500</leader>
+    <controlfield tag="001">975436287</controlfield>
+    <datafield tag="020" ind1=" " ind2=" "><subfield code="a">9783498035280</subfield><subfield code="c">Pp. : EUR 19.95</subfield></datafield>
+    <datafield tag="041" ind1=" " ind2=" "><subfield code="a">ger</subfield></datafield>
+    <datafield tag="082" ind1="0" ind2="4"><subfield code="a">830</subfield></datafield>
+    <datafield tag="100" ind1="1" ind2=" "><subfield code="a">Kehlmann, Daniel</subfield><subfield code="d">1975-</subfield><subfield code="4">aut</subfield></datafield>
+    <datafield tag="245" ind1="1" ind2="0"><subfield code="a">&#152;Die&#156; Vermessung der Welt</subfield><subfield code="b">Roman</subfield><subfield code="c">Daniel Kehlmann</subfield></datafield>
+    <datafield tag="250" ind1=" " ind2=" "><subfield code="a">12. Aufl.</subfield></datafield>
+    <datafield tag="264" ind1=" " ind2="1"><subfield code="a">Reinbek bei Hamburg</subfield><subfield code="b">Rowohlt</subfield><subfield code="c">2005</subfield></datafield>
+    <datafield tag="300" ind1=" " ind2=" "><subfield code="a">302 S.</subfield><subfield code="c">21 cm</subfield></datafield>
+    <datafield tag="490" ind1="0" ind2=" "><subfield code="a">rororo</subfield><subfield code="v">24100</subfield></datafield>
+    <datafield tag="689" ind1="0" ind2="0"><subfield code="a">Gauß, Carl Friedrich</subfield></datafield>
+    <datafield tag="689" ind1="0" ind2="1"><subfield code="a">Humboldt, Alexander von</subfield></datafield>
+    <datafield tag="700" ind1="1" ind2=" "><subfield code="a">Muster, Erika</subfield><subfield code="e">Illustrator</subfield><subfield code="4">ill</subfield></datafield>
+  </record>
+  </recordData></record></records>
+</searchRetrieveResponse>

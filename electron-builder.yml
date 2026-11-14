@@ -1,0 +1,27 @@
+appId: de.bibcat.app
+productName: BibCat
+directories:
+  buildResources: build
+  output: dist
+files:
+  - out/**/*
+  - package.json
+asar: true
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+mac:
+  category: public.app-category.reference
+  target:
+    - target: dmg
+      arch: [universal]
+  extendInfo:
+    NSCameraUsageDescription: BibCat nutzt die Kamera, um ISBN-Barcodes von Büchern zu scannen.
+linux:
+  target: [AppImage]
+  category: Office
