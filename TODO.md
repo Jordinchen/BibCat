@@ -2,9 +2,8 @@
 
 ## Offen
 
-- [ ] **Schaltfläche „Neues Buch" → „Neues Medium"** (Menüband › Start › Erfassen). Gilt auch für reine
-      Buchsammlungen; bei gemischten Medien heißt sie derzeit „Neuer Eintrag" – einheitlich „Neues
-      Medium" verwenden. Englisch z. B. „New item".
+- [ ] **Schaltfläche „Neues Buch" → immer „Neuer Eintrag"** (Menüband › Start › Erfassen), auch bei
+      reinen Buchsammlungen – derzeit heißt sie nur bei gemischten Medien so. Englisch „New item".
 - [ ] **Tooltip im Menüband ohne Leerzeichen** („NeuesBuch"): In `src/renderer/src/components/Ribbon.tsx`
       wird beim Tooltip der Zeilenumbruch der Beschriftung gelöscht statt durch ein Leerzeichen ersetzt.
       Dabei auch Silbentrennungen wie „Schnell-\nerfassung" berücksichtigen (→ „Schnellerfassung").
